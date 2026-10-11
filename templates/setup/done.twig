@@ -1,0 +1,16 @@
+{% extends 'layouts/base.twig' %}
+{% block title %}Installation abgeschlossen{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+{% block content %}
+<section class="card app-card">
+    <div class="card-body p-4">
+        <h1 class="h2 mb-3">Installation erfolgreich</h1>
+        <p>Die Datenbank ist eingerichtet. Sie können sich jetzt im Administrator anmelden.</p>
+        <p>Benutzername: <strong>{{ admin_username }}</strong></p>
+        <p class="mb-0">
+            <a class="btn btn-primary" href="/administrator/login">Zum Login</a>
+            <a class="btn btn-outline-primary" href="/">Zur Startseite</a>
+        </p>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends 'layouts/admin.twig' %}
+{% block title %}Halbjahre{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="h3 mb-0">Halbjahre &amp; Sportkurse</h1>
+</div>
+
+{% if flash %}<div class="alert alert-success">{{ flash }}</div>{% endif %}
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Halbjahr</th>
+                <th>Status</th>
+                <th>Kurse</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for hj in halbjahre %}
+            <tr>
+                <td><strong>{{ hj.name }}</strong></td>
+                <td>
+                    {% if hj.aktiv %}
+                        <span class="badge text-bg-success">aktiv</span>
+                    {% else %}
+                        <span class="badge text-bg-secondary">inaktiv</span>
+                    {% endif %}
+                </td>
+                <td>{{ hj.kurse|length }}</td>
+                <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary" href="/administrator/halbjahre/{{ hj.id }}">Bearbeiten</a>
+                    <form class="d-inline" method="post" action="/administrator/halbjahre/{{ hj.id }}/toggle">
+                        {{ csrf.field()|raw }}
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                            {% if hj.aktiv %}Deaktivieren{% else %}Aktivieren{% endif %}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

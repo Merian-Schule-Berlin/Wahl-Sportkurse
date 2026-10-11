@@ -1,0 +1,92 @@
+{% extends 'layouts/base.twig' %}
+{% block title %}Bestätigung · {{ app_name }}{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+{% block body_class %}page-confirmation{% endblock %}
+{% block content %}
+<article class="card app-card confirmation">
+    <div class="card-body confirmation-body">
+        <header class="confirmation-header">
+            {% if site_logo %}
+                <div class="confirmation-logo">
+                    <img src="/uploads/{{ site_logo }}"
+                         alt="{{ app_name }}"
+                         style="max-height:52px;max-width:160px;width:auto;height:auto;display:block;">
+                </div>
+            {% endif %}
+            <div class="confirmation-heading">
+                <p class="confirmation-kicker">Anmeldebestätigung</p>
+                <h1 class="confirmation-title">Danke für Ihre Wahl</h1>
+            </div>
+        </header>
+
+        {% if anmeldung.status == 'storniert' %}
+            <div class="alert alert-warning no-print">Diese Anmeldung wurde storniert.</div>
+            <p class="confirmation-print-note print-only">Status: storniert</p>
+        {% else %}
+            <p class="confirmation-lead">Ihre Anmeldung ist gespeichert. Eine Bestätigung wurde per E-Mail versendet.</p>
+        {% endif %}
+
+        <dl class="confirmation-details">
+            <div class="confirmation-row">
+                <dt>Name</dt>
+                <dd>{{ anmeldung.name }}</dd>
+            </div>
+            <div class="confirmation-row">
+                <dt>Tutorium</dt>
+                <dd>{{ anmeldung.tutorium }}</dd>
+            </div>
+            <div class="confirmation-row">
+                <dt>E-Mail</dt>
+                <dd>{{ anmeldung.email }}</dd>
+            </div>
+            <div class="confirmation-row">
+                <dt>Status</dt>
+                <dd>{{ anmeldung.status }}</dd>
+            </div>
+        </dl>
+
+        <div class="table-responsive mt-3 mb-3">
+            <table class="table table-sm table-bordered">
+                <thead>
+                    <tr>
+                        <th>Halbjahr</th>
+                        <th>1. Wahl</th>
+                        <th>Alternative</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ anmeldung.hj1_name }}</td>
+                        <td>{{ anmeldung.hj1_kurs_name }}</td>
+                        <td>{{ anmeldung.hj1_alt_name }}</td>
+                    </tr>
+                    <tr>
+                        <td>{{ anmeldung.hj2_name }}</td>
+                        <td>{{ anmeldung.hj2_kurs_name }}</td>
+                        <td>{{ anmeldung.hj2_alt_name }}</td>
+                    </tr>
+                    <tr>
+                        <td>{{ anmeldung.hj3_name }}</td>
+                        <td>{{ anmeldung.hj3_kurs_name }}</td>
+                        <td>{{ anmeldung.hj3_alt_name }}</td>
+                    </tr>
+                    <tr>
+                        <td>{{ anmeldung.hj4_name }}</td>
+                        <td>{{ anmeldung.hj4_kurs_name }}</td>
+                        <td>{{ anmeldung.hj4_alt_name }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <footer class="confirmation-footer print-only">
+            <p>{{ app_name }}</p>
+        </footer>
+
+        <div class="no-print confirmation-actions">
+            <button type="button" class="btn btn-primary" onclick="window.print()">Bestätigung drucken / speichern</button>
+            <a class="btn btn-outline-primary" href="/">Zur Startseite</a>
+        </div>
+    </div>
+</article>
+{% endblock %}

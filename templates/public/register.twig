@@ -1,0 +1,129 @@
+{% extends 'layouts/base.twig' %}
+{% block title %}Sportkurse wählen · {{ app_name }}{% endblock %}
+{% block content %}
+{% set capacity_mode = capacity_display|default('free_numbers') %}
+<section class="card app-card">
+    <div class="card-body p-4">
+        <h1 class="h2 mb-3">Sportkurse wählen</h1>
+        <p class="text-muted mb-4">Bitte wählen Sie für jedes Halbjahr eine 1.&nbsp;Wahl und eine Alternative.</p>
+
+        {% if admin_test_mode|default(false) %}
+            <div class="alert alert-info">Testmodus: Die öffentliche Anmeldung ist geschlossen. Als Administrator können Sie den Ablauf trotzdem prüfen.</div>
+        {% endif %}
+
+        {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+        {% if not form_ready|default(false) %}
+            <div class="alert alert-warning">
+                Die Anmeldung ist noch nicht vollständig eingerichtet. Es müssen vier aktive Halbjahre mit jeweils mindestens zwei Kursen vorhanden sein.
+            </div>
+            <p class="mb-0"><a class="btn btn-outline-primary" href="/">Zur Startseite</a></p>
+        {% else %}
+            <form method="post" action="/anmelden" id="register-form">
+                {{ csrf.field()|raw }}
+
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered align-middle choice-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Halbjahr</th>
+                                <th scope="col">1. Wahl</th>
+                                <th scope="col">Alternative</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for hj in halbjahre %}
+                            {% set hjId = hj.id %}
+                            {% set oldWahl = old.wahl[hjId]|default(old.wahl[hjId|string]|default('')) %}
+                            {% set oldAlt = old.alt[hjId]|default(old.alt[hjId|string]|default('')) %}
+                            <tr>
+                                <th scope="row">{{ hj.name }}</th>
+                                <td>
+                                    <label class="visually-hidden" for="wahl-{{ hjId }}">1. Wahl {{ hj.name }}</label>
+                                    <select class="form-select" name="wahl[{{ hjId }}]" id="wahl-{{ hjId }}" required data-pair="alt-{{ hjId }}">
+                                        <option value="">Bitte wählen…</option>
+                                        {% for k in hj.kurse %}
+                                            {% set is_full = k.frei <= 0 %}
+                                            {% set label = k.name %}
+                                            {% if is_full %}
+                                                {% set label = label ~ ' (ausgebucht)' %}
+                                            {% elseif capacity_mode == 'free_numbers' %}
+                                                {% set label = label ~ ' (' ~ k.frei ~ '/' ~ k.kapazitaet ~ ' frei)' %}
+                                            {% endif %}
+                                            <option value="{{ k.id }}"
+                                                {% if oldWahl != '' and oldWahl == k.id %}selected{% endif %}
+                                                {% if is_full and (oldWahl == '' or oldWahl != k.id) %}disabled{% endif %}>
+                                                {{ label }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <label class="visually-hidden" for="alt-{{ hjId }}">Alternative {{ hj.name }}</label>
+                                    <select class="form-select" name="alt[{{ hjId }}]" id="alt-{{ hjId }}" required>
+                                        <option value="">Bitte wählen…</option>
+                                        {% for k in hj.kurse %}
+                                            <option value="{{ k.id }}"
+                                                {% if oldAlt != '' and oldAlt == k.id %}selected{% endif %}>
+                                                {{ k.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label" for="name">Name</label>
+                        <input class="form-control" type="text" name="name" id="name" required value="{{ old.name|default('') }}" autocomplete="name">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="tutorium">Tutorium</label>
+                        <input class="form-control" type="text" name="tutorium" id="tutorium" required value="{{ old.tutorium|default('') }}" autocomplete="organization">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="email">E-Mail</label>
+                        <input class="form-control" type="email" name="email" id="email" required value="{{ old.email|default('') }}" autocomplete="email">
+                    </div>
+                </div>
+
+                {% include 'partials/bot_protection.twig' %}
+
+                <button type="submit" class="btn btn-primary">Anmeldung absenden</button>
+                <a class="btn btn-outline-primary ms-2" href="/">Abbrechen</a>
+            </form>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% set bp = bot_protection|default({enabled: false, script_url: ''}) %}
+{% if bp.enabled and bp.script_url %}
+<script src="{{ bp.script_url }}" async defer></script>
+{% endif %}
+<script>
+(function () {
+    var form = document.getElementById('register-form');
+    if (!form) return;
+    form.addEventListener('submit', function (e) {
+        var pairs = form.querySelectorAll('select[name^="wahl["]');
+        for (var i = 0; i < pairs.length; i++) {
+            var wahl = pairs[i];
+            var altId = wahl.getAttribute('data-pair');
+            var alt = altId ? document.getElementById(altId) : null;
+            if (alt && wahl.value && alt.value && wahl.value === alt.value) {
+                e.preventDefault();
+                alert('1. Wahl und Alternative müssen je Halbjahr unterschiedlich sein.');
+                alt.focus();
+                return;
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends 'layouts/base.twig' %}
+{% block title %}Stornierung · {{ app_name }}{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+{% block content %}
+<section class="card app-card">
+    <div class="card-body p-4">
+        <h1 class="h2 mb-3">Anmeldung stornieren</h1>
+
+        {% if done %}
+            <div class="alert alert-success">Ihre Anmeldung wurde storniert.</div>
+            <dl class="detail-list mb-4">
+                <dt>Name</dt><dd>{{ anmeldung.name }}</dd>
+                <dt>Tutorium</dt><dd>{{ anmeldung.tutorium }}</dd>
+            </dl>
+            <p class="mb-0"><a class="btn btn-primary" href="/">Zur Startseite</a></p>
+        {% elseif anmeldung.status == 'storniert' %}
+            <div class="alert alert-warning">Diese Anmeldung ist bereits storniert.</div>
+            <p class="mb-0"><a class="btn btn-primary" href="/">Zur Startseite</a></p>
+        {% else %}
+            {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+            <p>Möchten Sie die folgende Anmeldung wirklich stornieren?</p>
+            <dl class="detail-list mb-3">
+                <dt>Name</dt><dd>{{ anmeldung.name }}</dd>
+                <dt>Tutorium</dt><dd>{{ anmeldung.tutorium }}</dd>
+                <dt>E-Mail</dt><dd>{{ anmeldung.email }}</dd>
+            </dl>
+            <div class="table-responsive mb-4">
+                <table class="table table-sm table-bordered">
+                    <thead>
+                        <tr><th>Halbjahr</th><th>1. Wahl</th><th>Alternative</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>{{ anmeldung.hj1_name }}</td><td>{{ anmeldung.hj1_kurs_name }}</td><td>{{ anmeldung.hj1_alt_name }}</td></tr>
+                        <tr><td>{{ anmeldung.hj2_name }}</td><td>{{ anmeldung.hj2_kurs_name }}</td><td>{{ anmeldung.hj2_alt_name }}</td></tr>
+                        <tr><td>{{ anmeldung.hj3_name }}</td><td>{{ anmeldung.hj3_kurs_name }}</td><td>{{ anmeldung.hj3_alt_name }}</td></tr>
+                        <tr><td>{{ anmeldung.hj4_name }}</td><td>{{ anmeldung.hj4_kurs_name }}</td><td>{{ anmeldung.hj4_alt_name }}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <form method="post" action="/stornieren/{{ anmeldung.token }}">
+                {{ csrf.field()|raw }}
+                {% include 'partials/bot_protection.twig' %}
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary">Ja, stornieren</button>
+                    <a class="btn btn-outline-primary" href="/">Abbrechen</a>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% set bp = bot_protection|default({enabled: false, script_url: ''}) %}
+{% if bp.enabled and bp.script_url %}
+<script src="{{ bp.script_url }}" async defer></script>
+{% endif %}
+{% endblock %}

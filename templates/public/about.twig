@@ -1,0 +1,14 @@
+{% extends 'layouts/base.twig' %}
+{% block title %}{{ page_title }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="card app-card">
+    <div class="card-body p-4">
+        <h1 class="h2 mb-3">{{ page_title }}</h1>
+        {% if missing %}
+            <p class="text-muted mb-0">Dieser Hinweis ist noch nicht hinterlegt.</p>
+        {% else %}
+            <div class="legal-body rich-content">{{ body|rich }}</div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

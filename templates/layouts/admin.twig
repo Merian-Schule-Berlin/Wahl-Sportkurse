@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <script>
+    (function () {
+        try {
+            var theme = localStorage.getItem('admin-theme');
+            if (theme === 'dark' || theme === 'light') {
+                document.documentElement.setAttribute('data-bs-theme', theme);
+            }
+            // Cache-Buster vom Theme-Reload aus der URL entfernen
+            var url = new URL(window.location.href);
+            if (url.searchParams.has('_theme')) {
+                url.searchParams.delete('_theme');
+                window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+            }
+        } catch (e) {}
+    })();
+    </script>
+    <title>{% block title %}Administration{% endblock %} · {{ app_name }}</title>
+    {% if site_logo %}
+        <link rel="icon" href="/uploads/{{ site_logo }}" type="image/png">
+        <link rel="apple-touch-icon" href="/uploads/{{ site_logo }}">
+    {% endif %}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/app.css?v={{ asset_version|default('1') }}">
+</head>
+{% set path = admin_path|default('') %}
+{% set tab = admin_tab|default('') %}
+{% set on_dashboard = path == '/administrator' or path == '/administrator/' %}
+{% set on_halbjahre = path starts with '/administrator/halbjahre' %}
+{% set on_listen = path starts with '/administrator/listen' %}
+{% set on_settings = path starts with '/administrator/einstellungen' %}
+{% set settings_tab = tab != '' ? tab : 'uebersicht' %}
+<body class="admin-body">
+    <div class="admin-shell" id="admin-shell">
+        <aside class="admin-sidebar" id="admin-sidebar" aria-label="Administration">
+            <div class="admin-sidebar-brand">
+                <a class="admin-brand-link" href="/administrator">
+                    {% if site_logo %}
+                        <img class="admin-brand-logo" src="/uploads/{{ site_logo }}" alt="">
+                    {% else %}
+                        <span class="admin-brand-mark" aria-hidden="true"><i class="bi bi-trophy-fill"></i></span>
+                    {% endif %}
+                    <span class="admin-brand-text">{{ app_name }}</span>
+                </a>
+            </div>
+
+            <button type="button" class="admin-sidebar-collapse" id="admin-sidebar-collapse" aria-controls="admin-sidebar" aria-expanded="true">
+                <i class="bi bi-layout-sidebar-inset" aria-hidden="true"></i>
+                <span class="admin-sidebar-collapse-label">Menü einklappen</span>
+            </button>
+
+            <nav class="admin-sidebar-nav">
+                <a class="admin-nav-link{% if on_dashboard %} is-active{% endif %}" href="/administrator">
+                    <i class="bi bi-speedometer2" aria-hidden="true"></i>
+                    <span>Übersicht</span>
+                </a>
+
+                <details class="admin-nav-group" {% if on_halbjahre %}open{% endif %}>
+                    <summary class="admin-nav-summary{% if on_halbjahre %} is-active{% endif %}">
+                        <span class="admin-nav-summary-main">
+                            <i class="bi bi-calendar3" aria-hidden="true"></i>
+                            <span>Halbjahre</span>
+                        </span>
+                        <i class="bi bi-chevron-right admin-nav-chevron" aria-hidden="true"></i>
+                    </summary>
+                    <div class="admin-nav-sub">
+                        <a class="admin-nav-sublink{% if path == '/administrator/halbjahre' %} is-active{% endif %}" href="/administrator/halbjahre">
+                            Übersicht
+                        </a>
+                        {% for hj in admin_nav_halbjahre|default([]) %}
+                            <a class="admin-nav-sublink{% if path == '/administrator/halbjahre/' ~ hj.id %} is-active{% endif %}" href="/administrator/halbjahre/{{ hj.id }}">
+                                {{ hj.name }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                </details>
+
+                <a class="admin-nav-link{% if on_listen %} is-active{% endif %}" href="/administrator/listen">
+                    <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+                    <span>Anmeldungen</span>
+                </a>
+
+                {% if admin_is_full %}
+                    <details class="admin-nav-group" {% if on_settings %}open{% endif %}>
+                        <summary class="admin-nav-summary{% if on_settings %} is-active{% endif %}">
+                            <span class="admin-nav-summary-main">
+                                <i class="bi bi-gear" aria-hidden="true"></i>
+                                <span>Einstellungen</span>
+                            </span>
+                            <i class="bi bi-chevron-right admin-nav-chevron" aria-hidden="true"></i>
+                        </summary>
+                        <div class="admin-nav-sub">
+                            <a class="admin-nav-sublink{% if on_settings and settings_tab == 'uebersicht' %} is-active{% endif %}" href="/administrator/einstellungen">
+                                Übersicht
+                            </a>
+                            <a class="admin-nav-sublink{% if on_settings and settings_tab == 'darstellung' %} is-active{% endif %}" href="/administrator/einstellungen?tab=darstellung">
+                                Darstellung
+                            </a>
+                            <a class="admin-nav-sublink{% if on_settings and settings_tab == 'zeitraum' %} is-active{% endif %}" href="/administrator/einstellungen?tab=zeitraum">
+                                Zeitraum
+                            </a>
+                            <a class="admin-nav-sublink{% if on_settings and settings_tab == 'email' %} is-active{% endif %}" href="/administrator/einstellungen?tab=email">
+                                E-Mail
+                            </a>
+                            <a class="admin-nav-sublink{% if on_settings and settings_tab == 'rechtliches' %} is-active{% endif %}" href="/administrator/einstellungen?tab=rechtliches">
+                                Rechtliches
+                            </a>
+                            <a class="admin-nav-sublink{% if on_settings and settings_tab == 'benutzer' %} is-active{% endif %}" href="/administrator/einstellungen?tab=benutzer">
+                                Benutzer
+                            </a>
+                            {% set on_system = settings_tab in ['system', 'indexierung', 'bot-schutz', 'daten'] %}
+                            <details class="admin-nav-group admin-nav-group-nested" {% if on_settings and on_system %}open{% endif %}>
+                                <summary class="admin-nav-sublink admin-nav-subsummary{% if on_settings and on_system %} is-active{% endif %}">
+                                    <span>System</span>
+                                    <i class="bi bi-chevron-right admin-nav-chevron" aria-hidden="true"></i>
+                                </summary>
+                                <div class="admin-nav-sub admin-nav-sub-nested">
+                                    <a class="admin-nav-sublink{% if on_settings and settings_tab == 'system' %} is-active{% endif %}" href="/administrator/einstellungen?tab=system">
+                                        Übersicht
+                                    </a>
+                                    <a class="admin-nav-sublink{% if on_settings and settings_tab == 'indexierung' %} is-active{% endif %}" href="/administrator/einstellungen?tab=indexierung">
+                                        Indexierung
+                                    </a>
+                                    <a class="admin-nav-sublink{% if on_settings and settings_tab == 'bot-schutz' %} is-active{% endif %}" href="/administrator/einstellungen?tab=bot-schutz">
+                                        Bot-Schutz
+                                    </a>
+                                    <a class="admin-nav-sublink admin-nav-sublink-danger{% if on_settings and settings_tab == 'daten' %} is-active{% endif %}" href="/administrator/einstellungen?tab=daten">
+                                        Löschen
+                                    </a>
+                                </div>
+                            </details>
+                        </div>
+                    </details>
+                {% endif %}
+            </nav>
+        </aside>
+
+        <div class="admin-backdrop" id="admin-backdrop" hidden></div>
+
+        <div class="admin-main">
+            <header class="admin-topbar">
+                <div class="admin-topbar-left">
+                    <button type="button" class="admin-menu-toggle" id="admin-menu-toggle" aria-controls="admin-sidebar" aria-expanded="false" aria-label="Menü öffnen">
+                        <i class="bi bi-list" aria-hidden="true"></i>
+                    </button>
+                    <h1 class="admin-topbar-title">{{ block('title') }}</h1>
+                </div>
+                <div class="admin-topbar-actions">
+                    <a class="admin-site-pill" href="/" target="_blank" rel="noopener">
+                        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                        <span>Zur Website</span>
+                    </a>
+                    <div class="dropdown">
+                        <button class="admin-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="admin-profile-avatar" aria-hidden="true">
+                                <i class="bi bi-person-fill"></i>
+                            </span>
+                            <span class="admin-profile-name">{{ admin_username|default('Admin') }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end admin-profile-menu">
+                            <li class="dropdown-header">{{ admin_username|default('Admin') }}</li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <div class="dropdown-item-text admin-theme-toggle">
+                                    <span class="admin-theme-toggle-label">
+                                        <i class="bi bi-moon-stars" id="admin-theme-icon" aria-hidden="true"></i>
+                                        <span id="admin-theme-label">Dunkler Modus</span>
+                                    </span>
+                                    <div class="form-check form-switch m-0">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="admin-theme-switch" aria-label="Dunkler Modus">
+                                    </div>
+                                </div>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="post" action="/administrator/logout">
+                                    {{ csrf.field()|raw }}
+                                    <button type="submit" class="dropdown-item">
+                                        <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>
+                                        Abmelden
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+
+            <main class="admin-content">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script>
+    (function () {
+        var shell = document.getElementById('admin-shell');
+        var collapseBtn = document.getElementById('admin-sidebar-collapse');
+        var menuToggle = document.getElementById('admin-menu-toggle');
+        var backdrop = document.getElementById('admin-backdrop');
+        var storageKey = 'admin-sidebar-collapsed';
+        var themeKey = 'admin-theme';
+        var themeSwitch = document.getElementById('admin-theme-switch');
+        var themeIcon = document.getElementById('admin-theme-icon');
+        var themeLabel = document.getElementById('admin-theme-label');
+
+        function isMobile() {
+            return window.matchMedia('(max-width: 991.98px)').matches;
+        }
+
+        function setCollapsed(collapsed) {
+            if (!shell) return;
+            shell.classList.toggle('is-collapsed', collapsed);
+            if (collapseBtn) {
+                collapseBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                var label = collapseBtn.querySelector('.admin-sidebar-collapse-label');
+                if (label) {
+                    label.textContent = collapsed ? 'Menü ausklappen' : 'Menü einklappen';
+                }
+            }
+            try {
+                localStorage.setItem(storageKey, collapsed ? '1' : '0');
+            } catch (e) {}
+        }
+
+        function setMobileOpen(open) {
+            if (!shell || !menuToggle || !backdrop) return;
+            shell.classList.toggle('is-mobile-open', open);
+            menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            backdrop.hidden = !open;
+            document.body.classList.toggle('admin-nav-open', open);
+        }
+
+        function currentTheme() {
+            return document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light';
+        }
+
+        function syncThemeUi(theme) {
+            var isDark = theme === 'dark';
+            if (themeSwitch) {
+                themeSwitch.checked = isDark;
+            }
+            if (themeIcon) {
+                themeIcon.className = isDark ? 'bi bi-sun' : 'bi bi-moon-stars';
+            }
+            if (themeLabel) {
+                themeLabel.textContent = 'Dunkler Modus';
+            }
+        }
+
+        function setTheme(theme) {
+            var next = theme === 'dark' ? 'dark' : 'light';
+            try {
+                localStorage.setItem(themeKey, next);
+            } catch (e) {}
+
+            // Editor-Inhalt sichern (darf Reload nicht blockieren)
+            try {
+                if (typeof tinymce !== 'undefined' && tinymce.editors) {
+                    for (var i = 0; i < tinymce.editors.length; i++) {
+                        try {
+                            tinymce.editors[i].save();
+                        } catch (err) {}
+                    }
+                }
+            } catch (e) {}
+
+            // Hard Reload: Cache umgehen, TinyMCE-Skin neu initialisieren
+            var url = new URL(window.location.href);
+            url.searchParams.set('_theme', next);
+            window.location.replace(url.toString());
+        }
+
+        if (collapseBtn) {
+            collapseBtn.addEventListener('click', function () {
+                if (isMobile()) {
+                    setMobileOpen(false);
+                    return;
+                }
+                setCollapsed(!shell.classList.contains('is-collapsed'));
+            });
+        }
+
+        if (menuToggle) {
+            menuToggle.addEventListener('click', function () {
+                setMobileOpen(!shell.classList.contains('is-mobile-open'));
+            });
+        }
+
+        if (backdrop) {
+            backdrop.addEventListener('click', function () {
+                setMobileOpen(false);
+            });
+        }
+
+        if (themeSwitch) {
+            themeSwitch.addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
+            themeSwitch.addEventListener('change', function () {
+                setTheme(themeSwitch.checked ? 'dark' : 'light');
+            });
+        }
+
+        syncThemeUi(currentTheme());
+
+        try {
+            if (!isMobile() && localStorage.getItem(storageKey) === '1') {
+                setCollapsed(true);
+            }
+        } catch (e) {}
+
+        window.addEventListener('resize', function () {
+            if (!isMobile()) {
+                setMobileOpen(false);
+            }
+        });
+    })();
+    </script>
+    <script src="/assets/js/admin-autosave.js?v={{ asset_version|default('1') }}" defer></script>
+    <script>
+    (function () {
+        function initSettingsTooltips(root) {
+            if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
+                return;
+            }
+            (root || document).querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+                if (bootstrap.Tooltip.getInstance(el)) {
+                    return;
+                }
+                new bootstrap.Tooltip(el);
+            });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function () {
+                initSettingsTooltips(document);
+            });
+        } else {
+            initSettingsTooltips(document);
+        }
+        window.AdminTooltips = { init: initSettingsTooltips };
+    })();
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

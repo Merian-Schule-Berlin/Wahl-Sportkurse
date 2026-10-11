@@ -1,0 +1,98 @@
+{% extends 'layouts/admin.twig' %}
+{% block title %}{{ halbjahr.name }}{% endblock %}
+{% block content %}
+<p class="mb-2"><a href="/administrator/halbjahre">← Alle Halbjahre</a></p>
+<h1 class="h3 mb-3">{{ halbjahr.name }}</h1>
+
+{% if flash %}<div class="alert alert-success">{{ flash }}</div>{% endif %}
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+<section class="card app-card mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Halbjahr</h2>
+        <form method="post" action="/administrator/halbjahre/{{ halbjahr.id }}">
+            {{ csrf.field()|raw }}
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="name">Name</label>
+                    <input class="form-control" type="text" name="name" id="name" required value="{{ halbjahr.name }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="sortierung">Sortierung</label>
+                    <input class="form-control" type="number" name="sortierung" id="sortierung" value="{{ halbjahr.sortierung }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="aktiv" id="aktiv" value="1" {% if halbjahr.aktiv %}checked{% endif %}>
+                        <label class="form-check-label" for="aktiv">Aktiv</label>
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Speichern</button>
+        </form>
+    </div>
+</section>
+
+<section class="card app-card mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Neuen Kurs anlegen</h2>
+        <form method="post" action="/administrator/halbjahre/{{ halbjahr.id }}/kurse" class="row g-3 align-items-end">
+            {{ csrf.field()|raw }}
+            <div class="col-md-6">
+                <label class="form-label" for="kurs_name">Name</label>
+                <input class="form-control" type="text" name="name" id="kurs_name" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="kurs_kap">Kapazität</label>
+                <input class="form-control" type="number" name="kapazitaet" id="kurs_kap" min="1" value="20" required>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100">Anlegen</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<section class="card app-card">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Kurse</h2>
+        {% if kurse is empty %}
+            <p class="text-muted mb-0">Noch keine Kurse in diesem Halbjahr.</p>
+        {% else %}
+            {% for k in kurse %}
+                <form method="post" action="/administrator/halbjahre/{{ halbjahr.id }}/kurse/{{ k.id }}" class="border rounded p-3 mb-3">
+                    {{ csrf.field()|raw }}
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label">Name</label>
+                            <input class="form-control" type="text" name="name" value="{{ k.name }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Kapazität</label>
+                            <input class="form-control" type="number" name="kapazitaet" min="1" value="{{ k.kapazitaet }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Sortierung</label>
+                            <input class="form-control" type="number" name="sortierung" value="{{ k.sortierung }}">
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" name="aktiv" value="1" id="aktiv-{{ k.id }}" {% if k.aktiv %}checked{% endif %}>
+                                <label class="form-check-label" for="aktiv-{{ k.id }}">Aktiv</label>
+                            </div>
+                            <div class="small text-muted">Belegt: {{ k.belegt }}/{{ k.kapazitaet }}</div>
+                        </div>
+                        <div class="col-md-2 d-flex gap-2">
+                            <button type="submit" class="btn btn-sm btn-primary">OK</button>
+                        </div>
+                    </div>
+                </form>
+                <form method="post" action="/administrator/halbjahre/{{ halbjahr.id }}/kurse/{{ k.id }}/delete" class="mb-3" onsubmit="return confirm('Kurs wirklich löschen?');">
+                    {{ csrf.field()|raw }}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Kurs löschen</button>
+                </form>
+            {% endfor %}
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

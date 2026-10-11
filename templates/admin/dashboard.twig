@@ -1,0 +1,119 @@
+{% extends 'layouts/admin.twig' %}
+{% block title %}Übersicht{% endblock %}
+{% block content %}
+{% set window = registration_window %}
+
+{% if flash %}<div class="alert alert-info mb-3">{{ flash }}</div>{% endif %}
+
+<div class="dashboard-grid">
+    <section class="dash-widget dash-widget-window is-{{ window.state }}">
+        <header class="dash-widget-header">
+            <h2 class="dash-widget-title">Anmeldefenster</h2>
+            <a class="dash-widget-action" href="/administrator/einstellungen?tab=zeitraum" title="Zeitraum bearbeiten">
+                <i class="bi bi-gear" aria-hidden="true"></i>
+            </a>
+        </header>
+        <div class="dash-widget-body">
+            <div class="dash-status-badge">
+                <span class="dash-status-dot" aria-hidden="true"></span>
+                <span class="dash-status-label">{{ window.label }}</span>
+            </div>
+            <p class="dash-window-count">
+                <strong>{{ active_count }}</strong>
+                aktive Anmeldung{% if active_count != 1 %}en{% endif %}
+            </p>
+            {% if window.start or window.end %}
+                <dl class="dash-window-dates">
+                    <div>
+                        <dt>Start</dt>
+                        <dd>{% if window.start %}{{ window.start|date('d.m.Y, H:i') }} Uhr{% else %}—{% endif %}</dd>
+                    </div>
+                    <div>
+                        <dt>Ende</dt>
+                        <dd>{% if window.end %}{{ window.end|date('d.m.Y, H:i') }} Uhr{% else %}—{% endif %}</dd>
+                    </div>
+                </dl>
+            {% else %}
+                <p class="dash-widget-note mb-0">Kein Zeitraum hinterlegt – die Anmeldung ist dauerhaft offen.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="dash-widget">
+        <header class="dash-widget-header">
+            <h2 class="dash-widget-title">Schnellaktionen</h2>
+        </header>
+        <div class="dash-widget-body">
+            <div class="dash-quick-actions">
+                <a class="dash-quick-action" href="/administrator/halbjahre">
+                    <i class="bi bi-calendar3" aria-hidden="true"></i>
+                    <span>Halbjahre &amp; Kurse</span>
+                </a>
+                <a class="dash-quick-action" href="/administrator/listen">
+                    <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+                    <span>Anmeldungen</span>
+                </a>
+                <a class="dash-quick-action" href="/administrator/einstellungen">
+                    <i class="bi bi-gear" aria-hidden="true"></i>
+                    <span>Einstellungen</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="dash-widget dash-widget-wide">
+        <header class="dash-widget-header">
+            <h2 class="dash-widget-title">Kapazitäten nach Kurs</h2>
+            <span class="dash-widget-meta">{{ active_count }} aktiv</span>
+        </header>
+        <div class="dash-widget-body">
+            {% if halbjahre is empty %}
+                <p class="mb-0 text-muted">Noch keine Halbjahre vorhanden.</p>
+            {% else %}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle dash-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Halbjahr</th>
+                                <th>Kurse</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for hj in halbjahre %}
+                            <tr>
+                                <td>
+                                    <span class="status-icon-row">
+                                        {% if hj.aktiv %}
+                                            <i class="bi bi-check-circle-fill status-icon status-icon-ok" title="Aktiv" aria-label="Aktiv"></i>
+                                        {% else %}
+                                            <i class="bi bi-x-circle-fill status-icon status-icon-off" title="Inaktiv" aria-label="Inaktiv"></i>
+                                        {% endif %}
+                                        <a href="/administrator/halbjahre/{{ hj.id }}">{{ hj.name }}</a>
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if hj.kurse is empty %}
+                                        <span class="text-muted">—</span>
+                                    {% else %}
+                                        <ul class="dash-schienen-list">
+                                            {% for k in hj.kurse %}
+                                                <li>
+                                                    <span>{{ k.name }}{% if not k.aktiv %} <em>(inaktiv)</em>{% endif %}</span>
+                                                    <span class="dash-capacity{% if k.belegt >= k.kapazitaet %} is-full{% endif %}">
+                                                        {{ k.belegt }}/{{ k.kapazitaet }}
+                                                    </span>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}

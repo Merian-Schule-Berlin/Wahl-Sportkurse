@@ -1,0 +1,712 @@
+{% extends 'layouts/admin.twig' %}
+{% block title %}Einstellungen{% endblock %}
+{% block content %}
+{% set tab = active_tab|default('uebersicht') %}
+<section class="settings-page">
+    {% if flash %}<div class="alert alert-success mb-3">{{ flash }}</div>{% endif %}
+    {% if error %}<div class="alert alert-danger mb-3">{{ error }}</div>{% endif %}
+
+    <div class="settings-shell">
+        <div class="settings-panels">
+            <div class="settings-panel{% if tab == 'uebersicht' %} is-active{% endif %}" data-panel="uebersicht">
+                <h2 class="settings-panel-title">Einstellungen</h2>
+                <p class="settings-panel-lead">Wählen Sie einen Bereich – oder nutzen Sie das Menü links.</p>
+                <div class="settings-overview-grid">
+                    <a class="settings-overview-card" href="/administrator/einstellungen?tab=darstellung">
+                        <i class="bi bi-palette2" aria-hidden="true"></i>
+                        <span class="settings-overview-title">Darstellung</span>
+                        <span class="settings-overview-text">Marke, Willkommen, Kopfzeile und Plätze</span>
+                    </a>
+                    <a class="settings-overview-card" href="/administrator/einstellungen?tab=zeitraum">
+                        <i class="bi bi-calendar-range" aria-hidden="true"></i>
+                        <span class="settings-overview-title">Zeitraum</span>
+                        <span class="settings-overview-text">Anmeldezeitraum festlegen</span>
+                    </a>
+                    <a class="settings-overview-card" href="/administrator/einstellungen?tab=email">
+                        <i class="bi bi-envelope" aria-hidden="true"></i>
+                        <span class="settings-overview-title">E-Mail</span>
+                        <span class="settings-overview-text">Bestätigung, Storno und Absender</span>
+                    </a>
+                    <a class="settings-overview-card" href="/administrator/einstellungen?tab=rechtliches">
+                        <i class="bi bi-shield-check" aria-hidden="true"></i>
+                        <span class="settings-overview-title">Rechtliches</span>
+                        <span class="settings-overview-text">Impressum und Datenschutz</span>
+                    </a>
+                    <a class="settings-overview-card" href="/administrator/einstellungen?tab=benutzer">
+                        <i class="bi bi-people" aria-hidden="true"></i>
+                        <span class="settings-overview-title">Benutzer</span>
+                        <span class="settings-overview-text">Administratoren verwalten</span>
+                    </a>
+                    <a class="settings-overview-card" href="/administrator/einstellungen?tab=system">
+                        <i class="bi bi-hdd-stack" aria-hidden="true"></i>
+                        <span class="settings-overview-title">System</span>
+                        <span class="settings-overview-text">Indexierung, Bot-Schutz und Löschen</span>
+                    </a>
+                </div>
+            </div>
+
+            {# —— System —— #}
+            <div class="settings-panel{% if tab == 'system' %} is-active{% endif %}" data-panel="system">
+                <h2 class="settings-panel-title">System</h2>
+                <p class="settings-panel-lead">Wartung, Sichtbarkeit und Schutz der Installation.</p>
+                <div class="settings-overview-grid">
+                    <a class="settings-overview-card" href="/administrator/einstellungen?tab=indexierung">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                        <span class="settings-overview-title">Indexierung</span>
+                        <span class="settings-overview-text">Meta-Beschreibung, Google &amp; Sitemap</span>
+                    </a>
+                    <a class="settings-overview-card" href="/administrator/einstellungen?tab=bot-schutz">
+                        <i class="bi bi-shield-lock" aria-hidden="true"></i>
+                        <span class="settings-overview-title">Bot-Schutz</span>
+                        <span class="settings-overview-text">Google reCAPTCHA oder Cloudflare Turnstile</span>
+                    </a>
+                    <a class="settings-overview-card settings-overview-card-danger" href="/administrator/einstellungen?tab=daten">
+                        <i class="bi bi-trash3" aria-hidden="true"></i>
+                        <span class="settings-overview-title">Löschen</span>
+                        <span class="settings-overview-text">Anmeldungen zurücksetzen</span>
+                    </a>
+                </div>
+            </div>
+
+            {# —— Indexierung —— #}
+            <div class="settings-panel{% if tab == 'indexierung' %} is-active{% endif %}" data-panel="indexierung">
+                <h2 class="settings-panel-title">
+                    Indexierung
+                    {% include 'partials/settings_info.twig' with { text: 'Steuert Suchmaschinen-Erfassung, Meta-Beschreibung und Sitemap der öffentlichen Seiten.' } %}
+                </h2>
+
+                {% set indexing_on = settings.google_indexing|default('0') == '1' %}
+                {% set meta_desc = settings.meta_description|default('') %}
+                <form method="post" action="/administrator/einstellungen/indexierung" data-autosave>
+                    {{ csrf.field()|raw }}
+                    <div class="settings-block">
+                        <div class="settings-option{% if indexing_on %} is-enabled{% endif %} mb-0">
+                            <div class="settings-option-head">
+                                <div class="settings-option-copy">
+                                    <span class="settings-option-title">
+                                        Google-Indexierung
+                                        {% include 'partials/settings_info.twig' with { text: 'Erlaubt Suchmaschinen, die öffentlichen Seiten zu indexieren. Aus = noindex und robots.txt sperrt die Seite; Admin-Bereich bleibt ausgeschlossen. Bei aktivierter Indexierung wird eine Sitemap unter /sitemap.xml bereitgestellt.' } %}
+                                    </span>
+                                </div>
+                                <div class="form-check form-switch m-0 d-flex align-items-center gap-2" data-autosave-status>
+                                    <input class="form-check-input" type="checkbox" role="switch" name="google_indexing" value="1" id="google_indexing"{% if indexing_on %} checked{% endif %}>
+                                    <label class="form-check-label visually-hidden" for="google_indexing">Aktivieren</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-block mt-3">
+                        <div class="settings-block-heading">
+                            <h3 class="settings-block-title mb-0">
+                                Metadaten
+                                {% include 'partials/settings_info.twig' with { text: 'Titel kommt aus dem Seitentitel unter Darstellung. Die Meta-Beschreibung erscheint in Suchergebnissen und Social-Previews.' } %}
+                            </h3>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="meta_description">
+                                Meta-Beschreibung
+                                {% include 'partials/settings_info.twig' with { text: 'Kurzer Text für Google & Co. (empfohlen 120–160 Zeichen, max. 300). Ohne Eintrag wird der Untertitel genutzt, falls vorhanden.' } %}
+                            </label>
+                            <textarea class="form-control" name="meta_description" id="meta_description" rows="3" maxlength="300"
+                                      placeholder="z. B. Wahl der Sportkurse – pro Halbjahr Erst- und Alternativwahl.">{{ meta_desc }}</textarea>
+                            <p class="form-text mb-0" id="meta_description_counter" aria-live="polite"></p>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                    </div>
+                </form>
+            </div>
+
+            {# —— Bot-Schutz —— #}
+            <div class="settings-panel{% if tab == 'bot-schutz' %} is-active{% endif %}" data-panel="bot-schutz">
+                <h2 class="settings-panel-title">
+                    Bot-Schutz
+                    {% include 'partials/settings_info.twig' with { text: 'Schützt Anmeldung und Stornierung vor Spam-Bots. Anbieter wählen und Keys eintragen.' } %}
+                </h2>
+
+                {% set bot_provider = settings.bot_protection_provider|default('off') %}
+                <form method="post" action="/administrator/einstellungen/bot-schutz" id="bot-protection-form" data-autosave>
+                    {{ csrf.field()|raw }}
+
+                    <div class="settings-block">
+                        <h3 class="settings-block-title">Anbieter</h3>
+                        <fieldset class="settings-choice-group mb-0">
+                            <legend class="settings-choice-legend visually-hidden">Anbieter wählen</legend>
+                            <div class="settings-choice-grid" role="radiogroup" aria-label="Bot-Schutz-Anbieter">
+                                <input class="settings-choice-input" type="radio" name="bot_protection_provider" id="bot_off" value="off"{% if bot_provider == 'off' %} checked{% endif %}>
+                                <label class="settings-choice-card" for="bot_off">
+                                    <span class="settings-choice-icon" aria-hidden="true"><i class="bi bi-slash-circle"></i></span>
+                                    <span class="settings-choice-title">Aus</span>
+                                    <span class="settings-choice-example">Kein Captcha</span>
+                                </label>
+
+                                <input class="settings-choice-input" type="radio" name="bot_protection_provider" id="bot_recaptcha" value="recaptcha"{% if bot_provider == 'recaptcha' %} checked{% endif %}>
+                                <label class="settings-choice-card" for="bot_recaptcha">
+                                    <span class="settings-choice-icon" aria-hidden="true"><i class="bi bi-google"></i></span>
+                                    <span class="settings-choice-title">Google</span>
+                                    <span class="settings-choice-example">reCAPTCHA v2</span>
+                                </label>
+
+                                <input class="settings-choice-input" type="radio" name="bot_protection_provider" id="bot_turnstile" value="turnstile"{% if bot_provider == 'turnstile' %} checked{% endif %}>
+                                <label class="settings-choice-card" for="bot_turnstile">
+                                    <span class="settings-choice-icon" aria-hidden="true"><i class="bi bi-cloud"></i></span>
+                                    <span class="settings-choice-title">Cloudflare</span>
+                                    <span class="settings-choice-example">Turnstile</span>
+                                </label>
+                            </div>
+                        </fieldset>
+                    </div>
+
+                    <div class="settings-block" id="bot-keys-block"{% if bot_provider == 'off' %} hidden{% endif %}>
+                        <h3 class="settings-block-title">Keys</h3>
+                        <div class="mb-3">
+                            <label class="form-label" for="bot_protection_site_key">Site Key (öffentlich)</label>
+                            <input class="form-control" type="text" name="bot_protection_site_key" id="bot_protection_site_key"
+                                   value="{{ settings.bot_protection_site_key|default('') }}"
+                                   autocomplete="off" spellcheck="false">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="bot_protection_secret_key">
+                                Secret Key (geheim)
+                                {% include 'partials/settings_info.twig' with { text: 'Wird nur serverseitig zur Prüfung verwendet und nie öffentlich ausgegeben.' } %}
+                            </label>
+                            <input class="form-control" type="password" name="bot_protection_secret_key" id="bot_protection_secret_key"
+                                   value="{{ settings.bot_protection_secret_key|default('') }}"
+                                   autocomplete="new-password" spellcheck="false">
+                        </div>
+                    </div>
+
+                    <div class="settings-block" id="bot-setup-recaptcha"{% if bot_provider != 'recaptcha' %} hidden{% endif %}>
+                        <h3 class="settings-block-title">Setup: Google reCAPTCHA</h3>
+                        <ol class="mb-3 ps-3">
+                            <li class="mb-2">Öffnen Sie die <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener noreferrer">Google reCAPTCHA Admin Console</a>.</li>
+                            <li class="mb-2">Erstellen Sie einen neuen Schlüssel vom Typ <strong>reCAPTCHA v2</strong> → „Ich bin kein Roboter“-Kontrollkästchen.</li>
+                            <li class="mb-2">Tragen Sie Ihre Domain ein (z.&nbsp;B. <code>ihre-schule.de</code>; lokal: <code>localhost</code>).</li>
+                            <li class="mb-2">Kopieren Sie <strong>Site Key</strong> und <strong>Secret Key</strong> in die Felder oben.</li>
+                            <li>Die Keys werden automatisch gespeichert – das Captcha erscheint bei Anmeldung und Stornierung.</li>
+                        </ol>
+                        <p class="form-text mb-0">Hinweis: reCAPTCHA lädt Skripte von Google. Das sollte in der Datenschutzerklärung erwähnt werden.</p>
+                    </div>
+
+                    <div class="settings-block" id="bot-setup-turnstile"{% if bot_provider != 'turnstile' %} hidden{% endif %}>
+                        <h3 class="settings-block-title">Setup: Cloudflare Turnstile</h3>
+                        <ol class="mb-3 ps-3">
+                            <li class="mb-2">Öffnen Sie das <a href="https://dash.cloudflare.com/?to=/:account/turnstile" target="_blank" rel="noopener noreferrer">Cloudflare Turnstile Dashboard</a>.</li>
+                            <li class="mb-2">Erstellen Sie ein neues Widget (Modus z.&nbsp;B. „Managed“).</li>
+                            <li class="mb-2">Tragen Sie Ihre Domain ein (lokal: <code>localhost</code>).</li>
+                            <li class="mb-2">Kopieren Sie <strong>Site Key</strong> und <strong>Secret Key</strong> in die Felder oben.</li>
+                            <li>Die Keys werden automatisch gespeichert – der Schutz erscheint bei Anmeldung und Stornierung.</li>
+                        </ol>
+                        <p class="form-text mb-0">Turnstile ist oft unsichtbar und datenschutzfreundlicher als klassische Captchas.</p>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                    </div>
+                </form>
+            </div>
+
+            {# —— Darstellung —— #}
+            <div class="settings-panel{% if tab == 'darstellung' %} is-active{% endif %}" data-panel="darstellung">
+                <form method="post" action="/administrator/einstellungen" enctype="multipart/form-data" id="settings-darstellung-form" data-autosave>
+                    {{ csrf.field()|raw }}
+                    <input type="hidden" name="active_tab" value="darstellung">
+                    <input type="hidden" name="settings_section" value="darstellung">
+
+                    <h2 class="settings-panel-title">
+                        Darstellung
+                        {% include 'partials/settings_info.twig' with { text: 'Öffentliche Anmeldung: Marke, Willkommen, Kopfzeile und Platzanzeige.' } %}
+                    </h2>
+
+                    {% set capacity = settings.capacity_display|default('free_numbers') %}
+                    {% set full_behavior = settings.full_item_behavior|default('open') %}
+                    {% set homepage_on = settings.homepage_button_enabled|default('0') == '1' %}
+                    {% set theme_on = settings.public_theme_toggle|default('0') == '1' %}
+
+                    <div class="settings-block">
+                        <div class="settings-block-heading">
+                            <h3 class="settings-block-title mb-0">
+                                Marke
+                                {% include 'partials/settings_info.twig' with { text: 'Titel, Untertitel und Logo in der Kopfzeile.' } %}
+                            </h3>
+                        </div>
+
+                        <div class="settings-brand-grid">
+                            <div class="settings-brand-fields">
+                                <div class="mb-3">
+                                    <label class="form-label" for="site_title">
+                                        Seitentitel
+                                        {% include 'partials/settings_info.twig' with { text: 'Kopfzeile, Fußzeile und Willkommensseite.' } %}
+                                    </label>
+                                    <input class="form-control" type="text" name="site_title" id="site_title" maxlength="150"
+                                           value="{{ settings.site_title|default(app_name, true) }}"
+                                           placeholder="z. B. Merian Schule" required>
+                                </div>
+                                <div class="mb-0">
+                                    <label class="form-label" for="site_subtitle">
+                                        Untertitel <span class="text-muted fw-normal">(optional)</span>
+                                        {% include 'partials/settings_info.twig' with { text: 'Erscheint unter dem Titel in der Kopfzeile.' } %}
+                                    </label>
+                                    <input class="form-control" type="text" name="site_subtitle" id="site_subtitle" maxlength="150"
+                                           value="{{ settings.site_subtitle|default('') }}"
+                                           placeholder="z. B. Wahl der Sportkurse">
+                                </div>
+                            </div>
+
+                            <div class="settings-brand-logo">
+                                <label class="form-label" for="site_logo">
+                                    Logo
+                                    {% include 'partials/settings_info.twig' with { text: 'Oben links, empfohlen: PNG oder WebP.' } %}
+                                </label>
+                                {% if settings.site_logo|default('') %}
+                                    <div class="settings-preview settings-preview-logo mb-2">
+                                        <img class="thumb" src="/uploads/{{ settings.site_logo }}" alt="Aktuelles Logo">
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="remove_site_logo" value="1" id="remove_site_logo">
+                                        <label class="form-check-label" for="remove_site_logo">Logo entfernen</label>
+                                    </div>
+                                {% else %}
+                                    <p class="settings-empty-hint mb-2">Noch kein Logo hinterlegt.</p>
+                                {% endif %}
+                                <input class="form-control" type="file" name="site_logo" id="site_logo" accept="image/jpeg,image/png,image/webp,image/gif">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-block">
+                        <div class="settings-block-heading">
+                            <h3 class="settings-block-title mb-0">
+                                Willkommensseite
+                                {% include 'partials/settings_info.twig' with { text: 'Inhalt der Startseite vor der Anmeldung.' } %}
+                            </h3>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="welcome_text">Willkommenstext</label>
+                            <textarea class="form-control rich-editor" name="welcome_text" id="welcome_text" rows="7">{{ settings.welcome_text|default('') }}</textarea>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="welcome_image">Willkommensbild</label>
+                            {% if settings.welcome_image|default('') %}
+                                <div class="settings-preview mb-2">
+                                    <img class="thumb" src="/uploads/{{ settings.welcome_image }}" alt="Aktuelles Willkommensbild">
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="remove_welcome_image" value="1" id="remove_welcome_image">
+                                    <label class="form-check-label" for="remove_welcome_image">Bild entfernen</label>
+                                </div>
+                            {% endif %}
+                            <input class="form-control" type="file" name="welcome_image" id="welcome_image" accept="image/jpeg,image/png,image/webp,image/gif">
+                        </div>
+                    </div>
+
+                    <div class="settings-block">
+                        <div class="settings-block-heading">
+                            <h3 class="settings-block-title mb-0">
+                                Kopfzeile
+                                {% include 'partials/settings_info.twig' with { text: 'Optionale Aktionen rechts oben auf den öffentlichen Seiten.' } %}
+                            </h3>
+                        </div>
+
+                        <div class="settings-option{% if homepage_on %} is-enabled{% endif %}">
+                            <div class="settings-option-head">
+                                <div class="settings-option-copy">
+                                    <span class="settings-option-title">
+                                        Button „Zur Homepage“
+                                        {% include 'partials/settings_info.twig' with { text: 'Link zur Schul- oder Vereinswebsite.' } %}
+                                    </span>
+                                </div>
+                                <div class="form-check form-switch m-0">
+                                    <input class="form-check-input" type="checkbox" role="switch" name="homepage_button_enabled" value="1" id="homepage_button_enabled"{% if homepage_on %} checked{% endif %} aria-controls="homepage-button-fields">
+                                    <label class="form-check-label visually-hidden" for="homepage_button_enabled">Aktivieren</label>
+                                </div>
+                            </div>
+                            <div class="settings-option-body" id="homepage-button-fields">
+                                <div class="row g-3">
+                                    <div class="col-md-7">
+                                        <label class="form-label" for="homepage_button_url">
+                                            URL
+                                            {% include 'partials/settings_info.twig' with { text: 'Muss mit http:// oder https:// beginnen.' } %}
+                                        </label>
+                                        <input class="form-control" type="url" name="homepage_button_url" id="homepage_button_url" placeholder="https://…" value="{{ settings.homepage_button_url|default('') }}">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label" for="homepage_button_label">Button-Text</label>
+                                        <input class="form-control" type="text" name="homepage_button_label" id="homepage_button_label" maxlength="80"
+                                               value="{{ settings.homepage_button_label|default('Zur Homepage') }}"
+                                               placeholder="Zur Homepage">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-option{% if theme_on %} is-enabled{% endif %} mb-0">
+                            <div class="settings-option-head">
+                                <div class="settings-option-copy">
+                                    <span class="settings-option-title">
+                                        Hell- / Dunkelmodus
+                                        {% include 'partials/settings_info.twig' with { text: 'Umschalter in der Kopfzeile; Auswahl bleibt im Browser gespeichert.' } %}
+                                    </span>
+                                </div>
+                                <div class="form-check form-switch m-0">
+                                    <input class="form-check-input" type="checkbox" role="switch" name="public_theme_toggle" value="1" id="public_theme_toggle"{% if theme_on %} checked{% endif %}>
+                                    <label class="form-check-label visually-hidden" for="public_theme_toggle">Aktivieren</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-block">
+                        <div class="settings-block-heading">
+                            <h3 class="settings-block-title mb-0">
+                                Platzanzeige
+                                {% include 'partials/settings_info.twig' with { text: 'Was Teilnehmer bei der Kurswahl sehen.' } %}
+                            </h3>
+                        </div>
+
+                        <fieldset class="settings-choice-group mb-4">
+                            <legend class="settings-choice-legend">Verfügbarkeit anzeigen</legend>
+                            <div class="settings-choice-grid" role="radiogroup" aria-label="Verfügbarkeit anzeigen">
+                                <input class="settings-choice-input" type="radio" name="capacity_display" id="capacity_off" value="off"{% if capacity == 'off' %} checked{% endif %}>
+                                <label class="settings-choice-card" for="capacity_off">
+                                    <span class="settings-choice-icon" aria-hidden="true"><i class="bi bi-eye-slash"></i></span>
+                                    <span class="settings-choice-title">Keine Zahlen</span>
+                                    <span class="settings-choice-example">Nur Name &amp; Teaser</span>
+                                </label>
+
+                                <input class="settings-choice-input" type="radio" name="capacity_display" id="capacity_free_numbers" value="free_numbers"{% if capacity == 'free_numbers' %} checked{% endif %}>
+                                <label class="settings-choice-card" for="capacity_free_numbers">
+                                    <span class="settings-choice-icon" aria-hidden="true"><i class="bi bi-123"></i></span>
+                                    <span class="settings-choice-title">Zahlen</span>
+                                    <span class="settings-choice-example">12 von 20 Plätzen frei</span>
+                                </label>
+
+                                <input class="settings-choice-input" type="radio" name="capacity_display" id="capacity_free_schienen" value="free_schienen"{% if capacity == 'free_schienen' %} checked{% endif %}>
+                                <label class="settings-choice-card" for="capacity_free_schienen">
+                                    <span class="settings-choice-icon" aria-hidden="true"><i class="bi bi-layout-three-columns"></i></span>
+                                    <span class="settings-choice-title">Freie Kurse</span>
+                                    <span class="settings-choice-example">2 von 3 Kursen frei</span>
+                                </label>
+                            </div>
+                        </fieldset>
+
+                        <fieldset class="settings-choice-group mb-0">
+                            <legend class="settings-choice-legend">
+                                Wenn ausgebucht
+                                {% include 'partials/settings_info.twig' with { text: 'Ausgebucht wird weiterhin als Status angezeigt.' } %}
+                            </legend>
+                            <div class="settings-segment" role="radiogroup" aria-label="Wenn ausgebucht">
+                                <input class="settings-segment-input" type="radio" name="full_item_behavior" id="full_open" value="open"{% if full_behavior == 'open' %} checked{% endif %}>
+                                <label class="settings-segment-btn" for="full_open">
+                                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                                    <span>Teaser öffnen</span>
+                                </label>
+
+                                <input class="settings-segment-input" type="radio" name="full_item_behavior" id="full_gray" value="gray"{% if full_behavior == 'gray' %} checked{% endif %}>
+                                <label class="settings-segment-btn" for="full_gray">
+                                    <i class="bi bi-slash-circle" aria-hidden="true"></i>
+                                    <span>Ausgrauen</span>
+                                </label>
+                            </div>
+                        </fieldset>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                    </div>
+                </form>
+            </div>
+
+            {# —— Zeitraum —— #}
+            <div class="settings-panel{% if tab == 'zeitraum' %} is-active{% endif %}" data-panel="zeitraum">
+                <form method="post" action="/administrator/einstellungen" id="settings-zeitraum-form" data-autosave>
+                    {{ csrf.field()|raw }}
+                    <input type="hidden" name="active_tab" value="zeitraum">
+                    <input type="hidden" name="settings_section" value="zeitraum">
+
+                    <h2 class="settings-panel-title">
+                        Anmeldezeitraum
+                        {% include 'partials/settings_info.twig' with { text: 'Außerhalb dieses Zeitfensters ist die öffentliche Anmeldung geschlossen. Leer lassen = kein Limit.' } %}
+                    </h2>
+
+                    <div class="row g-3 settings-block">
+                        <div class="col-md-6">
+                            <label class="form-label" for="registration_start">Start</label>
+                            <input class="form-control" type="datetime-local" name="registration_start" id="registration_start" value="{{ settings.registration_start|default('')|replace({' ': 'T'})|slice(0, 16) }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="registration_end">Ende</label>
+                            <input class="form-control" type="datetime-local" name="registration_end" id="registration_end" value="{{ settings.registration_end|default('')|replace({' ': 'T'})|slice(0, 16) }}">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                    </div>
+                </form>
+            </div>
+
+            {# —— E-Mail-Einstellungen (Auto-Save; Versand unter /email bleibt manuell) —— #}
+            <div class="settings-panel{% if tab == 'email' %} is-active{% endif %}" data-panel="email">
+                <form method="post" action="/administrator/einstellungen" id="settings-email-form" data-autosave>
+                    {{ csrf.field()|raw }}
+                    <input type="hidden" name="active_tab" value="email">
+                    <input type="hidden" name="settings_section" value="email">
+
+                    <h2 class="settings-panel-title">
+                        E-Mail
+                        {% include 'partials/settings_info.twig' with { text: 'Absender sowie Betreff und Text für Bestätigungs- und Storno-Mails. Platzhalter werden beim Versand ersetzt.' } %}
+                    </h2>
+
+                    <div class="settings-block">
+                        <div class="mb-3">
+                            <label class="form-label" for="mail_from">Absender-Adresse</label>
+                            <input class="form-control" type="email" name="mail_from" id="mail_from" value="{{ settings.mail_from|default('') }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="mail_from_name">Absender-Name</label>
+                            <input class="form-control" type="text" name="mail_from_name" id="mail_from_name" value="{{ settings.mail_from_name|default('') }}">
+                        </div>
+                    </div>
+
+                    <div class="settings-block mt-4">
+                        <h3 class="h6 mb-3">Bestätigungsmail</h3>
+                        <div class="mb-3">
+                            <label class="form-label" for="mail_subject">
+                                Betreff
+                                {% include 'partials/settings_info.twig' with { text: 'Platzhalter möglich, z. B. {name}, {tutorium}.' } %}
+                            </label>
+                            <input class="form-control" type="text" name="mail_subject" id="mail_subject" value="{{ settings.mail_subject|default('') }}">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="mail_body">
+                                Mail-Text
+                                {% include 'partials/settings_info.twig' with { text: 'Platzhalter: {logo}, {name}, {tutorium}, {email}, {choices}, {cancel_url}, {thanks_url}, {from_name}.' } %}
+                            </label>
+                            <textarea class="form-control rich-editor" name="mail_body" id="mail_body" rows="14">{{ settings.mail_body|default(mail_body_default, true) }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="settings-block mt-4">
+                        <h3 class="h6 mb-3">Storno-Mail</h3>
+                        <div class="mb-3">
+                            <label class="form-label" for="mail_cancel_subject">
+                                Betreff
+                                {% include 'partials/settings_info.twig' with { text: 'Platzhalter möglich, z. B. {name}, {tutorium}.' } %}
+                            </label>
+                            <input class="form-control" type="text" name="mail_cancel_subject" id="mail_cancel_subject" value="{{ settings.mail_cancel_subject|default('') }}">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="mail_cancel_body">
+                                Mail-Text
+                                {% include 'partials/settings_info.twig' with { text: 'Wird nach einer Stornierung gesendet. Platzhalter: {logo}, {name}, {tutorium}, {email}, {choices}, {thanks_url}, {from_name}.' } %}
+                            </label>
+                            <textarea class="form-control rich-editor" name="mail_cancel_body" id="mail_cancel_body" rows="12">{{ settings.mail_cancel_body|default(mail_cancel_body_default, true) }}</textarea>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                    </div>
+                </form>
+            </div>
+
+            {# —— Rechtliches —— #}
+            <div class="settings-panel{% if tab == 'rechtliches' %} is-active{% endif %}" data-panel="rechtliches">
+                <form method="post" action="/administrator/einstellungen" id="settings-rechtliches-form" data-autosave>
+                    {{ csrf.field()|raw }}
+                    <input type="hidden" name="active_tab" value="rechtliches">
+                    <input type="hidden" name="settings_section" value="rechtliches">
+
+                    <h2 class="settings-panel-title">
+                        Rechtliches
+                        {% include 'partials/settings_info.twig' with { text: 'Entweder externe URL oder eigenen Text hinterlegen. Eine URL hat Vorrang.' } %}
+                    </h2>
+
+                    <div class="settings-block">
+                        <h3 class="settings-block-title">Impressum</h3>
+                        <div class="mb-3">
+                            <label class="form-label" for="impressum_url">Externe URL</label>
+                            <input class="form-control" type="url" name="impressum_url" id="impressum_url" placeholder="https://…" value="{{ settings.impressum_url|default('') }}">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="impressum_text">Oder Text</label>
+                            <textarea class="form-control rich-editor" name="impressum_text" id="impressum_text" rows="5">{{ settings.impressum_text|default('') }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="settings-block">
+                        <h3 class="settings-block-title">Datenschutz</h3>
+                        <div class="mb-3">
+                            <label class="form-label" for="datenschutz_url">Externe URL</label>
+                            <input class="form-control" type="url" name="datenschutz_url" id="datenschutz_url" placeholder="https://…" value="{{ settings.datenschutz_url|default('') }}">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="datenschutz_text">Oder Text</label>
+                            <textarea class="form-control rich-editor" name="datenschutz_text" id="datenschutz_text" rows="5">{{ settings.datenschutz_text|default('') }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="settings-block">
+                        <h3 class="settings-block-title">
+                            Woher kommt diese Seite
+                            {% include 'partials/settings_info.twig' with { text: 'Zusätzlicher Link im Fußbereich, z. B. für einen Hinweis auf die AG oder ein Dankeschön.' } %}
+                        </h3>
+                        <div class="mb-3">
+                            <label class="form-label" for="about_link_label">
+                                Linkname
+                                {% include 'partials/settings_info.twig' with { text: 'Text des Links im Footer und Überschrift der Seite.' } %}
+                            </label>
+                            <input class="form-control" type="text" name="about_link_label" id="about_link_label" maxlength="80"
+                                   placeholder="Woher kommt diese Seite"
+                                   value="{{ settings.about_link_label|default('Woher kommt diese Seite') }}">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="about_text">
+                                Freitext
+                                {% include 'partials/settings_info.twig' with { text: 'Leer lassen = Link wird nicht angezeigt.' } %}
+                            </label>
+                            <textarea class="form-control rich-editor" name="about_text" id="about_text" rows="5">{{ settings.about_text|default('') }}</textarea>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                    </div>
+                </form>
+            </div>
+
+            {# —— Benutzer —— #}
+            <div class="settings-panel{% if tab == 'benutzer' %} is-active{% endif %}" data-panel="benutzer">
+                <h2 class="settings-panel-title">Benutzer</h2>
+                <p class="settings-panel-lead">Administratoren mit Zugriff auf das Backend.</p>
+
+                <div class="settings-block">
+                    <h3 class="settings-block-title">Vorhandene Benutzer</h3>
+                    {% if users is empty %}
+                        <p class="mb-0 text-muted">Keine Benutzer vorhanden.</p>
+                    {% else %}
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Benutzername</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                {% for u in users %}
+                                    <tr>
+                                        <td>{{ u.username }}{% if u.id == current_admin_id %} <span class="text-muted">(Sie)</span>{% endif %}</td>
+                                        <td class="text-end">
+                                            {% if u.id != current_admin_id %}
+                                                <form method="post" action="/administrator/einstellungen/benutzer/{{ u.id }}/delete" class="d-inline" onsubmit="return confirm('Benutzer „{{ u.username }}“ wirklich löschen?');">
+                                                    {{ csrf.field()|raw }}
+                                                    <button type="submit" class="btn btn-link btn-sm text-danger p-0">Löschen</button>
+                                                </form>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="settings-block">
+                    <h3 class="settings-block-title">Neuen Benutzer anlegen</h3>
+                    <form method="post" action="/administrator/einstellungen/benutzer" id="user-create-form">
+                        {{ csrf.field()|raw }}
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="username">Benutzername</label>
+                                <input class="form-control" type="text" name="username" id="username" required maxlength="100" autocomplete="off">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="password">Passwort</label>
+                                <input class="form-control" type="password" name="password" id="password" required minlength="8" autocomplete="new-password">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-3">Benutzer anlegen</button>
+                    </form>
+                </div>
+            </div>
+
+            {# —— Daten —— #}
+            <div class="settings-panel{% if tab == 'daten' %} is-active{% endif %}" data-panel="daten">
+                <h2 class="settings-panel-title">Daten löschen</h2>
+                <p class="settings-panel-lead">Entfernt alle Anmeldungen unwiderruflich. Halbjahre, Kurse, Benutzer und Einstellungen bleiben erhalten.</p>
+
+                <div class="settings-danger">
+                    <p class="mb-2"><strong>{{ anmeldungen_total }}</strong> Anmeldung{{ anmeldungen_total != 1 ? 'en' : '' }} in der Datenbank.</p>
+                    <form method="post" action="/administrator/einstellungen/daten-loeschen" onsubmit="return confirm('Wirklich alle Anmeldungen unwiderruflich löschen?');">
+                        {{ csrf.field()|raw }}
+                        <div class="mb-3">
+                            <label class="form-label" for="confirm">Zur Bestätigung <code>LÖSCHEN</code> eingeben</label>
+                            <input class="form-control" type="text" name="confirm" id="confirm" autocomplete="off" required placeholder="LÖSCHEN">
+                        </div>
+                        <button type="submit" class="btn btn-danger" {% if anmeldungen_total == 0 %}disabled{% endif %}>Alle Anmeldungen löschen</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% include 'partials/rich_editor_assets.twig' %}
+<script>
+(function () {
+    function bindOptionSwitch(switchId) {
+        var input = document.getElementById(switchId);
+        if (!input) return;
+        var option = input.closest('.settings-option');
+        if (!option) return;
+        function sync() {
+            option.classList.toggle('is-enabled', input.checked);
+        }
+        input.addEventListener('change', sync);
+        sync();
+    }
+
+    bindOptionSwitch('homepage_button_enabled');
+    bindOptionSwitch('public_theme_toggle');
+    bindOptionSwitch('google_indexing');
+
+    var metaDesc = document.getElementById('meta_description');
+    var metaCounter = document.getElementById('meta_description_counter');
+    function syncMetaCounter() {
+        if (!metaDesc || !metaCounter) return;
+        var max = 300;
+        var left = max - (metaDesc.value || '').length;
+        metaCounter.textContent = left + ' Zeichen übrig von ' + max + ' Zeichen';
+    }
+    if (metaDesc) {
+        metaDesc.addEventListener('input', syncMetaCounter);
+        syncMetaCounter();
+    }
+
+    var botRadios = document.querySelectorAll('input[name="bot_protection_provider"]');
+    var botKeys = document.getElementById('bot-keys-block');
+    var botRecaptcha = document.getElementById('bot-setup-recaptcha');
+    var botTurnstile = document.getElementById('bot-setup-turnstile');
+
+    function syncBotProvider() {
+        var selected = 'off';
+        botRadios.forEach(function (radio) {
+            if (radio.checked) selected = radio.value;
+        });
+        if (botKeys) botKeys.hidden = selected === 'off';
+        if (botRecaptcha) botRecaptcha.hidden = selected !== 'recaptcha';
+        if (botTurnstile) botTurnstile.hidden = selected !== 'turnstile';
+    }
+
+    botRadios.forEach(function (radio) {
+        radio.addEventListener('change', syncBotProvider);
+    });
+    syncBotProvider();
+})();
+</script>
+{% endblock %}

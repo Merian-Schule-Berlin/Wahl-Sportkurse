@@ -1,0 +1,19 @@
+# Deny script execution in uploads
+<FilesMatch "\.(?i:php|phtml|php3|php4|php5|php7|phps|phar|cgi|pl)$">
+    Require all denied
+</FilesMatch>
+
+# Logos/Bilder im Browser cachen (30 Tage)
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/gif "access plus 30 days"
+    ExpiresByType image/webp "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+</IfModule>
+<IfModule mod_headers.c>
+    <FilesMatch "\.(?i:jpg|jpeg|png|gif|webp|svg)$">
+        Header set Cache-Control "public, max-age=2592000"
+    </FilesMatch>
+</IfModule>

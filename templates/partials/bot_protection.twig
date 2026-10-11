@@ -1,0 +1,10 @@
+{% set bp = bot_protection|default({enabled: false}) %}
+{% if bp.enabled %}
+    <div class="bot-protection mb-3" aria-label="Bot-Schutz">
+        {% if bp.provider == 'turnstile' %}
+            <div class="cf-turnstile" data-sitekey="{{ bp.site_key }}" data-theme="auto"></div>
+        {% else %}
+            <div class="g-recaptcha" data-sitekey="{{ bp.site_key }}"></div>
+        {% endif %}
+    </div>
+{% endif %}

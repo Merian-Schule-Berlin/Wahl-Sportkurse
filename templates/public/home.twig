@@ -1,0 +1,32 @@
+{% extends 'layouts/base.twig' %}
+{% block title %}{{ app_name }}{% if site_subtitle %} · {{ site_subtitle }}{% endif %}{% endblock %}
+{% block body_class %}page-home{% endblock %}
+{% block content %}
+<section class="card app-card overflow-hidden">
+    {% if welcome_image %}
+        <div class="hero-media">
+            <img src="/uploads/{{ welcome_image }}" alt="" class="card-img-top">
+        </div>
+    {% endif %}
+    <div class="card-body p-4">
+        <h1 class="h2 mb-3">{{ app_name }}</h1>
+        <div class="mb-3 rich-content">{{ welcome_text|rich }}</div>
+        {% if registration_start and registration_end %}
+            <p class="fw-semibold mb-3">
+                Anmeldung möglich vom {{ registration_start|date('d.m.Y (H:i)') }} bis {{ registration_end|date('d.m.Y (H:i)') }}
+            </p>
+        {% endif %}
+        {% if open %}
+            <p class="mb-0"><a class="btn btn-primary btn-lg" href="/anmelden">Sportkurse wählen</a></p>
+        {% else %}
+            <div class="alert alert-warning">Die Anmeldung ist derzeit geschlossen.</div>
+            {% if admin_logged_in %}
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary" href="/anmelden">Anmeldung testen</a>
+                    <a class="btn btn-outline-primary" href="/administrator">Zum Admin</a>
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

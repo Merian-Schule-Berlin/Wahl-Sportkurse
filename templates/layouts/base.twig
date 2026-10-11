@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% set page_title %}{% block title %}{{ app_name }}{% if site_subtitle %} · {{ site_subtitle }}{% endif %}{% endblock %}{% endset %}
+    {% set page_description %}{% block meta_description %}{{ meta_description|default(site_subtitle, true) }}{% endblock %}{% endset %}
+    {% set page_description = page_description|striptags|trim %}
+    <meta name="robots" content="{% block robots %}{% if google_indexing %}index, follow{% else %}noindex, nofollow{% endif %}{% endblock %}">
+    <title>{{ page_title|striptags|trim }}</title>
+    {% if page_description %}
+    <meta name="description" content="{{ page_description|e('html_attr') }}">
+    {% endif %}
+    {% if app_url %}
+    <link rel="canonical" href="{{ app_url }}{{ request_path|default('/') }}">
+    <meta property="og:url" content="{{ app_url }}{{ request_path|default('/') }}">
+    {% endif %}
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="de_DE">
+    <meta property="og:site_name" content="{{ app_name|e('html_attr') }}">
+    <meta property="og:title" content="{{ page_title|striptags|trim|e('html_attr') }}">
+    {% if page_description %}
+    <meta property="og:description" content="{{ page_description|e('html_attr') }}">
+    {% endif %}
+    {% if site_logo and app_url %}
+    <meta property="og:image" content="{{ app_url }}/uploads/{{ site_logo }}">
+    {% endif %}
+    <meta name="twitter:card" content="summary{% if site_logo and app_url %}_large_image{% endif %}">
+    <meta name="twitter:title" content="{{ page_title|striptags|trim|e('html_attr') }}">
+    {% if page_description %}
+    <meta name="twitter:description" content="{{ page_description|e('html_attr') }}">
+    {% endif %}
+    {% if public_theme_toggle %}
+    <script>
+    (function () {
+        try {
+            var theme = localStorage.getItem('public-theme');
+            if (theme === 'dark' || theme === 'light') {
+                document.documentElement.setAttribute('data-bs-theme', theme);
+            }
+        } catch (e) {}
+    })();
+    </script>
+    {% endif %}
+    {% if site_logo %}
+        <link rel="icon" href="/uploads/{{ site_logo }}" type="image/png">
+        <link rel="apple-touch-icon" href="/uploads/{{ site_logo }}">
+    {% endif %}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    {% if homepage_button_href or public_theme_toggle %}
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    {% endif %}
+    <link rel="stylesheet" href="/assets/css/app.css?v={{ asset_version|default('1') }}">
+    {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <header class="site-header border-bottom">
+        <div class="container-fluid site-header-inner">
+            {% if site_logo %}
+                <a class="site-logo-link" href="/">
+                    <img class="site-logo" src="/uploads/{{ site_logo }}" alt="{{ app_name }}">
+                </a>
+            {% endif %}
+            <a class="site-brand text-decoration-none{% if not homepage_button_href and not public_theme_toggle %} ms-auto{% endif %}" href="/">
+                <span class="brand">{{ app_name }}</span>
+                {% if site_subtitle %}
+                    <span class="site-subtitle">{{ site_subtitle }}</span>
+                {% endif %}
+            </a>
+            {% if homepage_button_href or public_theme_toggle %}
+                <div class="site-header-actions">
+                    {% if homepage_button_href %}
+                        <a class="btn btn-outline-primary btn-sm site-home-btn" href="{{ homepage_button_href }}" target="_blank" rel="noopener noreferrer">
+                            <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                            <span>{{ homepage_button_label|default('Zur Homepage') }}</span>
+                        </a>
+                    {% endif %}
+                    {% if public_theme_toggle %}
+                        <button type="button" class="btn btn-outline-secondary btn-sm site-theme-toggle" id="public-theme-toggle" aria-label="Hell- oder Dunkelmodus umschalten" title="Darstellung umschalten">
+                            <i class="bi bi-moon-stars" id="public-theme-icon" aria-hidden="true"></i>
+                        </button>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </header>
+    <main class="container py-4">
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="site-footer text-muted">
+        <div class="container-fluid site-footer-inner">
+            <span class="site-footer-brand">{{ app_name }}</span>
+            <div class="site-footer-secure">
+                <a href="https://www.sitelock.com/verify.php?site=merian.online" target="SiteLock" rel="noopener noreferrer"
+                   onclick="window.open(this.href,'SiteLock','width=600,height=600,left=160,top=170'); return false;">
+                    <img alt="SiteLock" title="SiteLock" src="https://shield.sitelock.com/shield/merian.online" width="128" height="65">
+                </a>
+            </div>
+            <nav class="legal-links" aria-label="Rechtliches">
+                {% if impressum_href %}
+                    <a href="{{ impressum_href }}"{% if impressum_external %} target="_blank" rel="noopener noreferrer"{% endif %}>Impressum</a>
+                {% endif %}
+                {% if impressum_href and datenschutz_href %}<span class="legal-sep" aria-hidden="true">·</span>{% endif %}
+                {% if datenschutz_href %}
+                    <a href="{{ datenschutz_href }}"{% if datenschutz_external %} target="_blank" rel="noopener noreferrer"{% endif %}>Datenschutz</a>
+                {% endif %}
+                {% if about_href %}
+                    {% if impressum_href or datenschutz_href %}<span class="legal-sep" aria-hidden="true">·</span>{% endif %}
+                    <a href="{{ about_href }}">{{ about_link_label|default('Woher kommt diese Seite') }}</a>
+                {% endif %}
+                {% if impressum_href or datenschutz_href or about_href %}<span class="legal-sep" aria-hidden="true">·</span>{% endif %}
+                <a href="#" data-cookie-settings>Cookie-Einstellungen</a>
+            </nav>
+        </div>
+    </footer>
+
+    <div id="cookie-consent" class="cookie-consent no-print" role="dialog" aria-labelledby="cookie-consent-title" aria-modal="false" hidden>
+        <div class="cookie-consent-inner">
+            <h2 id="cookie-consent-title" class="h6 mb-2">Cookie-Einstellungen</h2>
+            <p class="small mb-3">
+                Wir verwenden notwendige Cookies für den Betrieb der Website (z.&nbsp;B. Sitzung und Sicherheit).
+                Optionale Cookies setzen wir nur mit Ihrer Einwilligung.
+                {% if datenschutz_href %}
+                    Mehr dazu in der
+                    <a href="{{ datenschutz_href }}"{% if datenschutz_external %} target="_blank" rel="noopener noreferrer"{% endif %}>Datenschutzerklärung</a>.
+                {% endif %}
+            </p>
+            <div class="cookie-categories mb-3">
+                <label class="cookie-category">
+                    <input type="checkbox" checked disabled>
+                    <span>
+                        <strong>Notwendig</strong>
+                        <span class="d-block small text-muted">Erforderlich für Anmeldung und Sicherheit.</span>
+                    </span>
+                </label>
+                <label class="cookie-category">
+                    <input type="checkbox" id="cookie-statistics">
+                    <span>
+                        <strong>Statistik</strong>
+                        <span class="d-block small text-muted">Hilft uns, die Nutzung anonym auszuwerten.</span>
+                    </span>
+                </label>
+                <label class="cookie-category">
+                    <input type="checkbox" id="cookie-marketing">
+                    <span>
+                        <strong>Marketing</strong>
+                        <span class="d-block small text-muted">Für personalisierte Inhalte und Angebote.</span>
+                    </span>
+                </label>
+            </div>
+            <div class="cookie-actions">
+                <button type="button" class="btn btn-primary btn-sm" id="cookie-accept-all">Alle akzeptieren</button>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="cookie-save">Auswahl speichern</button>
+                <button type="button" class="btn btn-link btn-sm" id="cookie-necessary-only">Nur notwendige</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="/assets/js/cookie-consent.js?v={{ asset_version|default('1') }}" defer></script>
+    {% if public_theme_toggle %}
+    <script>
+    (function () {
+        var themeKey = 'public-theme';
+        var toggle = document.getElementById('public-theme-toggle');
+        var icon = document.getElementById('public-theme-icon');
+
+        function currentTheme() {
+            return document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light';
+        }
+
+        function syncThemeUi(theme) {
+            var isDark = theme === 'dark';
+            if (icon) {
+                icon.className = isDark ? 'bi bi-sun' : 'bi bi-moon-stars';
+            }
+            if (toggle) {
+                toggle.setAttribute('aria-label', isDark ? 'Hellen Modus aktivieren' : 'Dunklen Modus aktivieren');
+                toggle.setAttribute('title', isDark ? 'Heller Modus' : 'Dunkler Modus');
+            }
+        }
+
+        function setTheme(theme) {
+            var next = theme === 'dark' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-bs-theme', next);
+            try {
+                localStorage.setItem(themeKey, next);
+            } catch (e) {}
+            syncThemeUi(next);
+        }
+
+        syncThemeUi(currentTheme());
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+            });
+        }
+    })();
+    </script>
+    {% endif %}
+    {% block scripts %}{% endblock %}
+</body>
+</html>

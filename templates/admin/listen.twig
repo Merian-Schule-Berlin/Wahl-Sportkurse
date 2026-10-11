@@ -1,0 +1,48 @@
+{% extends 'layouts/admin.twig' %}
+{% block title %}Anmeldungen{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="h3 mb-0">Anmeldungen <span class="text-muted fs-6">({{ active_count }} aktiv)</span></h1>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-primary btn-sm" href="/administrator/listen/anmeldungen.csv">CSV exportieren</a>
+        <a class="btn btn-outline-primary btn-sm" href="/administrator/listen/anmeldungen.pdf">PDF exportieren</a>
+    </div>
+</div>
+
+{% if flash %}<div class="alert alert-success">{{ flash }}</div>{% endif %}
+
+{% if anmeldungen is empty %}
+    <p class="text-muted">Noch keine aktiven Anmeldungen.</p>
+{% else %}
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Tutorium</th>
+                    <th>E-Mail</th>
+                    <th>HJ1</th>
+                    <th>HJ2</th>
+                    <th>HJ3</th>
+                    <th>HJ4</th>
+                    <th>Datum</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for a in anmeldungen %}
+                <tr>
+                    <td>{{ a.name }}</td>
+                    <td>{{ a.tutorium }}</td>
+                    <td>{{ a.email }}</td>
+                    <td>{{ a.hj1_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj1_alt_name }}</small></td>
+                    <td>{{ a.hj2_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj2_alt_name }}</small></td>
+                    <td>{{ a.hj3_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj3_alt_name }}</small></td>
+                    <td>{{ a.hj4_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj4_alt_name }}</small></td>
+                    <td>{{ a.created_at|date('d.m.Y H:i') }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}
+{% endblock %}

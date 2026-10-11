@@ -1,0 +1,161 @@
+{% extends 'layouts/base.twig' %}
+{% block title %}Setup · {{ app_name }}{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+{% block body_class %}setup-page{% endblock %}
+{% block content %}
+<section class="card app-card">
+    <div class="card-body p-4">
+        <h1 class="h2 mb-3">Installation</h1>
+
+        {% if installed %}
+            <div class="alert alert-success">Die Anwendung ist bereits installiert. Der Setup-Assistent ist gesperrt.</div>
+            <p class="mb-0">
+                <a class="btn btn-primary" href="/">Zur Startseite</a>
+                <a class="btn btn-outline-primary" href="/administrator">Zum Administrator</a>
+            </p>
+        {% else %}
+            {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+            <p>Richten Sie Datenbank und E-Mail ein. Die Zugangsdaten finden Sie im IONOS-Kundencenter (MariaDB).</p>
+
+            <form method="post" action="/setup/install" id="setup-form">
+                {{ csrf.field()|raw }}
+
+                <fieldset class="border rounded p-3 mb-4">
+                    <legend class="float-none w-auto px-2 fs-6 fw-semibold">Anwendung</legend>
+                    <div class="mb-3">
+                        <label class="form-label" for="app_name">App-Name</label>
+                        <input class="form-control" type="text" name="app_name" id="app_name" value="{{ defaults.app_name|default('Wahl-Sportkurse') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="app_url">Öffentliche URL (ohne Schrägstrich am Ende)</label>
+                        <input class="form-control" type="url" name="app_url" id="app_url" placeholder="https://ihre-domain.de" value="{{ defaults.app_url|default('') }}" required>
+                    </div>
+                </fieldset>
+
+                <fieldset class="border rounded p-3 mb-4">
+                    <legend class="float-none w-auto px-2 fs-6 fw-semibold">Datenbank (MariaDB)</legend>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="db_host">Host</label>
+                            <input class="form-control" type="text" name="db_host" id="db_host" value="{{ defaults.db_host|default('localhost') }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="db_port">Port</label>
+                            <input class="form-control" type="text" name="db_port" id="db_port" value="{{ defaults.db_port|default('3306') }}" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="db_name">Datenbankname</label>
+                        <input class="form-control" type="text" name="db_name" id="db_name" value="{{ defaults.db_name|default('') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="db_user">Benutzer</label>
+                        <input class="form-control" type="text" name="db_user" id="db_user" value="{{ defaults.db_user|default('') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="db_pass">Passwort</label>
+                        <input class="form-control" type="password" name="db_pass" id="db_pass" value="{{ defaults.db_pass|default('') }}">
+                    </div>
+                    <button type="button" class="btn btn-outline-primary" id="btn-test-db">Verbindung prüfen</button>
+                    <p class="status mt-2 mb-0" id="db-status" aria-live="polite"></p>
+                </fieldset>
+
+                <fieldset class="border rounded p-3 mb-4">
+                    <legend class="float-none w-auto px-2 fs-6 fw-semibold">E-Mail</legend>
+                    <div class="mb-3">
+                        <label class="form-label" for="mail_from">Absender-Adresse</label>
+                        <input class="form-control" type="email" name="mail_from" id="mail_from" value="{{ defaults.mail_from|default('') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="mail_from_name">Absender-Name</label>
+                        <input class="form-control" type="text" name="mail_from_name" id="mail_from_name" value="{{ defaults.mail_from_name|default('Wahl-Sportkurse') }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="mail_subject">Betreff Bestätigungsmail</label>
+                        <input class="form-control" type="text" name="mail_subject" id="mail_subject" value="{{ defaults.mail_subject|default('Ihre Sportkurs-Wahl') }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="mail_test_to">Test an E-Mail senden</label>
+                        <input class="form-control" type="email" name="mail_test_to" id="mail_test_to" placeholder="ihre@adresse.de">
+                    </div>
+                    <button type="button" class="btn btn-outline-primary" id="btn-test-mail">Testmail senden</button>
+                    <p class="status mt-2 mb-0" id="mail-status" aria-live="polite"></p>
+                </fieldset>
+
+                <fieldset class="border rounded p-3 mb-4">
+                    <legend class="float-none w-auto px-2 fs-6 fw-semibold">Administrator</legend>
+                    <div class="mb-3">
+                        <label class="form-label" for="admin_username">Benutzername</label>
+                        <input class="form-control" type="text" name="admin_username" id="admin_username" value="{{ defaults.admin_username|default('admin') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="admin_password">Passwort (mind. 8 Zeichen)</label>
+                        <input class="form-control" type="password" name="admin_password" id="admin_password" required minlength="8">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="admin_password_confirm">Passwort wiederholen</label>
+                        <input class="form-control" type="password" name="admin_password_confirm" id="admin_password_confirm" required minlength="8">
+                    </div>
+                </fieldset>
+
+                <button type="submit" class="btn btn-primary">Installieren</button>
+            </form>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if not installed %}
+<script>
+const csrf = document.querySelector('input[name="_csrf"]').value;
+
+async function postJson(url, body) {
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({...body, _csrf: csrf})
+    });
+    return res.json();
+}
+
+document.getElementById('btn-test-db').addEventListener('click', async () => {
+    const status = document.getElementById('db-status');
+    status.textContent = 'Prüfe…';
+    status.className = 'status mt-2 mb-0';
+    try {
+        const data = await postJson('/setup/test-db', {
+            db_host: document.getElementById('db_host').value,
+            db_port: document.getElementById('db_port').value,
+            db_name: document.getElementById('db_name').value,
+            db_user: document.getElementById('db_user').value,
+            db_pass: document.getElementById('db_pass').value
+        });
+        status.textContent = data.message;
+        status.className = 'status mt-2 mb-0 ' + (data.ok ? 'text-success' : 'text-danger');
+    } catch (e) {
+        status.textContent = 'Anfrage fehlgeschlagen.';
+        status.className = 'status mt-2 mb-0 text-danger';
+    }
+});
+
+document.getElementById('btn-test-mail').addEventListener('click', async () => {
+    const status = document.getElementById('mail-status');
+    status.textContent = 'Sende…';
+    status.className = 'status mt-2 mb-0';
+    try {
+        const data = await postJson('/setup/test-mail', {
+            mail_from: document.getElementById('mail_from').value,
+            mail_from_name: document.getElementById('mail_from_name').value,
+            mail_test_to: document.getElementById('mail_test_to').value
+        });
+        status.textContent = data.message;
+        status.className = 'status mt-2 mb-0 ' + (data.ok ? 'text-success' : 'text-danger');
+    } catch (e) {
+        status.textContent = 'Anfrage fehlgeschlagen.';
+        status.className = 'status mt-2 mb-0 text-danger';
+    }
+});
+</script>
+{% endif %}
+{% endblock %}
