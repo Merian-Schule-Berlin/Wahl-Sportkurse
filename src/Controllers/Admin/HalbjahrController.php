@@ -32,13 +32,18 @@ final class HalbjahrController
 
         $file = trim($this->settings->get('kursbeschreibungen_file'));
         $label = trim($this->settings->get('kursbeschreibungen_name'));
+        $text = trim($this->settings->get('kursbeschreibungen_text'));
+        if ($text === '') {
+            $text = 'Hier findest du eine Übersicht über die [Kursbeschreibungen].';
+        }
 
         return $this->view->render($response, 'admin/halbjahre/index.twig', [
             'halbjahre' => $this->halbjahre->withStats(),
             'kurse' => $this->halbjahre->allKurse(),
             'kursbeschreibungen_file' => $file !== '' ? $file : null,
             'kursbeschreibungen_name' => $label !== '' ? $label : null,
-            'kursbeschreibungen_url' => $file !== '' ? '/uploads/' . rawurlencode(basename($file)) : null,
+            'kursbeschreibungen_url' => $file !== '' ? '/kursbeschreibungen' : null,
+            'kursbeschreibungen_text' => $text,
             'flash' => $flash,
             'error' => $error,
         ]);
@@ -169,6 +174,23 @@ final class HalbjahrController
         $this->halbjahre->setKursVerfuegbar($kursId, $hjId, $verfuegbar);
         $_SESSION['flash'] = $verfuegbar ? 'Kurs ist wieder wählbar.' : 'Kurs ausgegraut.';
         return $response->withHeader('Location', '/administrator/halbjahre/' . $hjId)->withStatus(302);
+    }
+
+    public function saveKursbeschreibungenText(Request $request, Response $response): Response
+    {
+        $data = (array) $request->getParsedBody();
+        $text = trim((string) ($data['kursbeschreibungen_text'] ?? ''));
+        if ($text === '') {
+            $_SESSION['flash_error'] = 'Bitte einen Hinweistext angeben.';
+            return $response->withHeader('Location', '/administrator/halbjahre')->withStatus(302);
+        }
+        if (!str_contains($text, '[') || !str_contains($text, ']')) {
+            // Ohne Markierung den gesamten Text verlinken – dafür Klammern ergänzen
+            $text = '[' . $text . ']';
+        }
+        $this->settings->setMany(['kursbeschreibungen_text' => $text]);
+        $_SESSION['flash'] = 'Hinweistext gespeichert.';
+        return $response->withHeader('Location', '/administrator/halbjahre')->withStatus(302);
     }
 
     public function uploadKursbeschreibungen(Request $request, Response $response): Response

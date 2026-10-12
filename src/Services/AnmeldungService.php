@@ -84,6 +84,8 @@ final class AnmeldungService
                 }
             }
 
+            $this->assertWahlregeln($choices, $locked);
+
             $token = bin2hex(random_bytes(32));
             $insert = $this->pdo->prepare(
                 'INSERT INTO anmeldungen (
@@ -165,6 +167,47 @@ final class AnmeldungService
             return false;
         }
         return (int) $row['verfuegbar'] === 1 && (int) $row['hj_aktiv'] === 1;
+    }
+
+    /**
+     * Regeln aus dem Wahlbogen:
+     * - mind. zwei verschiedene Bewegungsfelder in der 1. Wahl
+     * - jedes Kursthema höchstens zweimal als 1. Wahl
+     *
+     * @param array<int, array{kurs:int,alt:int}> $choices
+     * @param array<int, array<string, mixed>> $locked
+     */
+    private function assertWahlregeln(array $choices, array $locked): void
+    {
+        $primaryIds = [];
+        $felder = [];
+        foreach ($choices as $choice) {
+            $kursId = (int) $choice['kurs'];
+            $kurs = $locked[$kursId] ?? null;
+            if ($kurs === null) {
+                throw new RuntimeException('Ein gewählter Kurs ist nicht verfügbar.');
+            }
+            $primaryIds[] = $kursId;
+            $feld = trim((string) ($kurs['bewegungsfeld'] ?? ''));
+            $key = $feld !== '' ? mb_strtolower($feld) : ('kurs:' . $kursId);
+            $felder[$key] = true;
+        }
+
+        if (count($felder) < 2) {
+            throw new RuntimeException(
+                'Über die vier Halbjahre müssen in der 1. Wahl Sportkurse aus mindestens zwei verschiedenen Bewegungsfeldern gewählt werden.'
+            );
+        }
+
+        $counts = array_count_values($primaryIds);
+        foreach ($counts as $kursId => $count) {
+            if ($count > 2) {
+                $name = (string) ($locked[(int) $kursId]['name'] ?? 'Kurs');
+                throw new RuntimeException(
+                    'Das Kursthema „' . $name . '“ darf in den vier Halbjahren höchstens zweimal als 1. Wahl gewählt werden.'
+                );
+            }
+        }
     }
 
     /**
@@ -301,6 +344,31 @@ final class AnmeldungService
         $count = $this->countAll();
         $this->pdo->exec('DELETE FROM anmeldungen');
         return $count;
+    }
+
+    public function deleteById(int $id): bool
+    {
+        $stmt = $this->pdo->prepare('DELETE FROM anmeldungen WHERE id = :id');
+        $stmt->execute(['id' => $id]);
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * @param list<int> $ids
+     */
+    public function deleteByIds(array $ids): int
+    {
+        $ids = array_values(array_unique(array_filter(
+            array_map(static fn ($v): int => (int) $v, $ids),
+            static fn (int $id): bool => $id > 0
+        )));
+        if ($ids === []) {
+            return 0;
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->pdo->prepare("DELETE FROM anmeldungen WHERE id IN ($placeholders)");
+        $stmt->execute($ids);
+        return $stmt->rowCount();
     }
 
     /** @param array<string, mixed> $anmeldung */

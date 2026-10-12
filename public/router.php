@@ -29,6 +29,8 @@ if (
         'woff' => 'font/woff',
         'woff2' => 'font/woff2',
         'pdf' => 'application/pdf',
+        'doc' => 'application/msword',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'zip' => 'application/zip',
     ];
 
@@ -43,6 +45,9 @@ if (
         header('Cache-Control: public, max-age=' . $maxAge . ($maxAge >= 31536000 ? ', immutable' : ''));
         header('Expires: ' . gmdate('D, d M Y H:i:s', time() + $maxAge) . ' GMT');
         header('Last-Modified: ' . gmdate('D, d M Y H:i:s', (int) filemtime($realFile)) . ' GMT');
+        if (in_array($ext, ['doc', 'docx'], true)) {
+            header('Content-Disposition: attachment; filename="' . basename($realFile) . '"');
+        }
         readfile($realFile);
         return true;
     }

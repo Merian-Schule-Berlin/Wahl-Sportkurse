@@ -197,7 +197,8 @@ return [
             $c->get(AnmeldungService::class),
             $c->get(CsrfService::class),
             $c->get(AuthService::class),
-            $c->get(BotProtectionService::class)
+            $c->get(BotProtectionService::class),
+            $c->get('root_path') . '/public/uploads'
         );
     },
     LoginThrottleService::class => static function (ContainerInterface $c) {

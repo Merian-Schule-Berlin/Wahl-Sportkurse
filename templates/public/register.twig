@@ -7,12 +7,9 @@
     <div class="card-body p-4">
         <h1 class="h2 mb-3">Anmeldung Wahl-Sportkurse</h1>
         <p class="text-muted mb-2">Bitte kreuzen Sie für jedes Halbjahr eine <strong>1.&nbsp;Wahl</strong> und eine <strong>Alternative</strong> an.</p>
-        {% if kursbeschreibungen %}
-            <p class="mb-3">
-                Hier findest du eine Übersicht über die
-                <a href="{{ kursbeschreibungen }}" target="_blank" rel="noopener">Kursbeschreibungen</a>.
-            </p>
-        {% else %}
+        {% if kursbeschreibungen_html %}
+            <p class="mb-3">{{ kursbeschreibungen_html|raw }}</p>
+        {% elseif not kursbeschreibungen %}
             <p class="text-muted small mb-3">Kursbeschreibungen werden vom Administrator bereitgestellt, sobald eine Datei hinterlegt ist.</p>
         {% endif %}
 
@@ -30,6 +27,27 @@
         {% else %}
             <form method="post" action="/anmelden" id="register-form">
                 {{ csrf.field()|raw }}
+
+                <div id="wahl-regeln" class="wahl-regeln mb-3" aria-live="polite">
+                    <p class="fw-semibold mb-2">Bedingungen der Kurswahl <span id="wahl-regeln-gesamt" class="wahl-regeln-gesamt"></span></p>
+                    <ul class="wahl-regeln-list mb-0">
+                        <li id="regel-hj" data-state="open">
+                            <span class="wahl-regeln-icon" aria-hidden="true"></span>
+                            <span class="wahl-regeln-text">Pro Halbjahr 1.&nbsp;Wahl und eine davon verschiedene Alternative</span>
+                            <span class="wahl-regeln-detail" id="regel-hj-detail"></span>
+                        </li>
+                        <li id="regel-felder" data-state="open">
+                            <span class="wahl-regeln-icon" aria-hidden="true"></span>
+                            <span class="wahl-regeln-text">Mindestens zwei verschiedene Bewegungsfelder in der 1.&nbsp;Wahl</span>
+                            <span class="wahl-regeln-detail" id="regel-felder-detail"></span>
+                        </li>
+                        <li id="regel-doppelt" data-state="open">
+                            <span class="wahl-regeln-icon" aria-hidden="true"></span>
+                            <span class="wahl-regeln-text">Kein Kursthema mehr als zweimal als 1.&nbsp;Wahl</span>
+                            <span class="wahl-regeln-detail" id="regel-doppelt-detail"></span>
+                        </li>
+                    </ul>
+                </div>
 
                 <div class="table-responsive mb-4">
                     <table class="table table-bordered align-middle choice-matrix choice-matrix-wide mb-0">
@@ -114,7 +132,7 @@
 
                 {% include 'partials/bot_protection.twig' %}
 
-                <button type="submit" class="btn btn-primary">Anmeldung absenden</button>
+                <button type="submit" class="btn btn-primary" id="register-submit" disabled>Anmeldung absenden</button>
                 <a class="btn btn-outline-primary ms-2" href="/">Abbrechen</a>
             </form>
         {% endif %}
@@ -131,8 +149,32 @@
 (function () {
     var form = document.getElementById('register-form');
     if (!form) return;
-    form.addEventListener('submit', function (e) {
+    var hjIds = [{% for hj in halbjahre %}{{ hj.id }}{% if not loop.last %},{% endif %}{% endfor %}];
+    var hjNames = {
+        {% for hj in halbjahre %}
+        "{{ hj.id }}": {{ hj.name|json_encode|raw }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    };
+    var kursMeta = {
+        {% for k in kurse %}
+        "{{ k.id }}": { name: {{ k.name|json_encode|raw }}, feld: {{ (k.bewegungsfeld|default(''))|json_encode|raw }} }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    };
+    var submitBtn = document.getElementById('register-submit');
+
+    function setRegel(id, state, detail) {
+        var li = document.getElementById(id);
+        var det = document.getElementById(id + '-detail');
+        if (!li) return;
+        li.setAttribute('data-state', state);
+        if (det) det.textContent = detail || '';
+    }
+
+    function evaluate() {
         var hjs = {};
+        hjIds.forEach(function (id) {
+            hjs[String(id)] = { wahl: null, alt: null };
+        });
         form.querySelectorAll('input[data-role="wahl"]:checked').forEach(function (el) {
             hjs[el.getAttribute('data-hj')] = hjs[el.getAttribute('data-hj')] || {};
             hjs[el.getAttribute('data-hj')].wahl = el.value;
@@ -141,14 +183,105 @@
             hjs[el.getAttribute('data-hj')] = hjs[el.getAttribute('data-hj')] || {};
             hjs[el.getAttribute('data-hj')].alt = el.value;
         });
-        for (var id in hjs) {
-            if (hjs[id].wahl && hjs[id].alt && hjs[id].wahl === hjs[id].alt) {
-                e.preventDefault();
-                alert('1. Wahl und Alternative müssen je Halbjahr unterschiedlich sein.');
+
+        var missing = [];
+        var same = [];
+        var primary = [];
+        var felder = {};
+        var feldLabels = {};
+        var okHj = true;
+
+        hjIds.forEach(function (rawId) {
+            var id = String(rawId);
+            var row = hjs[id] || {};
+            var label = hjNames[id] || ('Halbjahr ' + id);
+            if (!row.wahl || !row.alt) {
+                missing.push(label);
+                okHj = false;
                 return;
             }
+            if (row.wahl === row.alt) {
+                same.push(label);
+                okHj = false;
+                return;
+            }
+            primary.push(row.wahl);
+            var meta = kursMeta[row.wahl] || {};
+            var feldRaw = (meta.feld || '').toString().trim();
+            var feldKey = feldRaw !== '' ? feldRaw.toLowerCase() : ('kurs:' + row.wahl);
+            felder[feldKey] = true;
+            if (feldRaw !== '') feldLabels[feldKey] = feldRaw;
+            else feldLabels[feldKey] = (meta.name || 'Kurs');
+        });
+
+        if (!okHj) {
+            if (same.length) {
+                setRegel('regel-hj', 'bad', 'Gleich in: ' + same.join(', '));
+            } else if (missing.length) {
+                setRegel('regel-hj', 'open', 'Noch offen: ' + missing.join(', '));
+            } else {
+                setRegel('regel-hj', 'open', '');
+            }
+        } else {
+            setRegel('regel-hj', 'ok', 'Alle Halbjahre vollständig');
+        }
+
+        var feldCount = Object.keys(felder).length;
+        if (primary.length === 0) {
+            setRegel('regel-felder', 'open', 'Noch keine 1. Wahl');
+        } else if (feldCount < 2) {
+            setRegel('regel-felder', 'bad', 'Bisher ' + feldCount + ' Bewegungsfeld');
+        } else {
+            setRegel('regel-felder', 'ok', feldCount + ' Bewegungsfelder');
+        }
+
+        var counts = {};
+        primary.forEach(function (kursId) {
+            counts[kursId] = (counts[kursId] || 0) + 1;
+        });
+        var tooOften = [];
+        Object.keys(counts).forEach(function (kursId) {
+            if (counts[kursId] > 2) {
+                var n = (kursMeta[kursId] && kursMeta[kursId].name) ? kursMeta[kursId].name : 'Kurs';
+                tooOften.push(n + ' (' + counts[kursId] + '×)');
+            }
+        });
+        if (tooOften.length) {
+            setRegel('regel-doppelt', 'bad', tooOften.join(', '));
+        } else if (primary.length === 0) {
+            setRegel('regel-doppelt', 'open', 'Noch keine 1. Wahl');
+        } else {
+            setRegel('regel-doppelt', 'ok', 'In Ordnung');
+        }
+
+        var allOk = okHj && feldCount >= 2 && tooOften.length === 0 && primary.length === hjIds.length;
+        var gesamt = document.getElementById('wahl-regeln-gesamt');
+        var box = document.getElementById('wahl-regeln');
+        if (gesamt) {
+            gesamt.textContent = allOk ? '– erfüllt' : '– noch nicht erfüllt';
+        }
+        if (box) {
+            box.setAttribute('data-complete', allOk ? '1' : '0');
+        }
+        if (submitBtn) {
+            submitBtn.disabled = !allOk;
+        }
+        return allOk;
+    }
+
+    form.addEventListener('change', function (e) {
+        if (e.target && e.target.classList && e.target.classList.contains('choice-radio')) {
+            evaluate();
         }
     });
+    form.addEventListener('submit', function (e) {
+        if (!evaluate()) {
+            e.preventDefault();
+            var box = document.getElementById('wahl-regeln');
+            if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    });
+    evaluate();
 })();
 </script>
 {% endblock %}

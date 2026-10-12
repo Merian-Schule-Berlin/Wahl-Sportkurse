@@ -15,9 +15,21 @@
             Datei mit den Beschreibungen der einzelnen Kurse (PDF, DOC oder DOCX).
             Auf der Anmeldeseite erscheint dann ein Link darauf.
         </p>
+
+        <form method="post" action="/administrator/halbjahre/kursbeschreibungen/text" class="mb-4">
+            {{ csrf.field()|raw }}
+            <label class="form-label" for="kursbeschreibungen_text">Hinweistext auf der Anmeldeseite</label>
+            <textarea class="form-control mb-2" name="kursbeschreibungen_text" id="kursbeschreibungen_text" rows="2" required>{{ kursbeschreibungen_text }}</textarea>
+            <p class="text-muted small mb-2">
+                Den klickbaren Teil in eckige Klammern setzen, z.&nbsp;B.
+                <code>Hier findest du eine Übersicht über die [Kursbeschreibungen].</code>
+            </p>
+            <button type="submit" class="btn btn-outline-primary btn-sm">Text speichern</button>
+        </form>
+
         {% if kursbeschreibungen_url %}
             <p class="mb-3">
-                Aktuell:
+                Aktuelle Datei:
                 <a href="{{ kursbeschreibungen_url }}" target="_blank" rel="noopener">
                     {{ kursbeschreibungen_name|default('Kursbeschreibungen') }}
                 </a>

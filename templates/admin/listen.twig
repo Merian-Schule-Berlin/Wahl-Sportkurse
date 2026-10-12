@@ -10,6 +10,7 @@
 </div>
 
 {% if flash %}<div class="alert alert-success">{{ flash }}</div>{% endif %}
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
 
 <ul class="nav nav-tabs mb-3" role="tablist">
     <li class="nav-item" role="presentation">
@@ -25,36 +26,61 @@
         {% if anmeldungen is empty %}
             <p class="text-muted">Noch keine aktiven Anmeldungen.</p>
         {% else %}
-            <div class="table-responsive">
-                <table class="table table-sm table-hover table-bordered align-middle">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Tutorium</th>
-                            <th>E-Mail</th>
-                            <th>HJ1 (1. / Alt.)</th>
-                            <th>HJ2 (1. / Alt.)</th>
-                            <th>HJ3 (1. / Alt.)</th>
-                            <th>HJ4 (1. / Alt.)</th>
-                            <th>Datum</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    {% for a in anmeldungen %}
-                        <tr>
-                            <td>{{ a.name }}</td>
-                            <td>{{ a.tutorium }}</td>
-                            <td>{{ a.email }}</td>
-                            <td>{{ a.hj1_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj1_alt_name }}</small></td>
-                            <td>{{ a.hj2_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj2_alt_name }}</small></td>
-                            <td>{{ a.hj3_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj3_alt_name }}</small></td>
-                            <td>{{ a.hj4_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj4_alt_name }}</small></td>
-                            <td>{{ a.created_at|date('d.m.Y H:i') }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            <form method="post" action="/administrator/listen/anmeldungen/delete" id="listen-delete-form">
+                {{ csrf.field()|raw }}
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" id="listen-delete-selected" disabled
+                            onclick="return confirm('Ausgewählte Anmeldungen wirklich löschen?');">
+                        Auswahl löschen
+                    </button>
+                    <span class="text-muted small align-self-center" id="listen-selected-count">Keine Auswahl</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover table-bordered align-middle">
+                        <thead>
+                            <tr>
+                                <th style="width:2.5rem">
+                                    <input class="form-check-input" type="checkbox" id="listen-select-all" title="Alle auswählen" aria-label="Alle auswählen">
+                                </th>
+                                <th>Name</th>
+                                <th>Tutorium</th>
+                                <th>E-Mail</th>
+                                <th>HJ1 (1. / Alt.)</th>
+                                <th>HJ2 (1. / Alt.)</th>
+                                <th>HJ3 (1. / Alt.)</th>
+                                <th>HJ4 (1. / Alt.)</th>
+                                <th>Datum</th>
+                                <th style="width:6rem"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for a in anmeldungen %}
+                            <tr>
+                                <td>
+                                    <input class="form-check-input listen-row-check" type="checkbox" name="ids[]" value="{{ a.id }}" aria-label="{{ a.name }} auswählen">
+                                </td>
+                                <td>{{ a.name }}</td>
+                                <td>{{ a.tutorium }}</td>
+                                <td>{{ a.email }}</td>
+                                <td>{{ a.hj1_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj1_alt_name }}</small></td>
+                                <td>{{ a.hj2_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj2_alt_name }}</small></td>
+                                <td>{{ a.hj3_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj3_alt_name }}</small></td>
+                                <td>{{ a.hj4_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj4_alt_name }}</small></td>
+                                <td>{{ a.created_at|date('d.m.Y H:i') }}</td>
+                                <td class="text-nowrap">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            formaction="/administrator/listen/anmeldungen/{{ a.id }}/delete"
+                                            formmethod="post"
+                                            onclick="return confirm('Anmeldung von „{{ a.name }}“ wirklich löschen?');">
+                                        Löschen
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </form>
         {% endif %}
     </div>
 
@@ -100,4 +126,43 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var form = document.getElementById('listen-delete-form');
+    if (!form) return;
+    var all = document.getElementById('listen-select-all');
+    var btn = document.getElementById('listen-delete-selected');
+    var label = document.getElementById('listen-selected-count');
+    function checks() {
+        return Array.prototype.slice.call(form.querySelectorAll('.listen-row-check'));
+    }
+    function sync() {
+        var list = checks();
+        var selected = list.filter(function (c) { return c.checked; }).length;
+        if (btn) btn.disabled = selected === 0;
+        if (label) {
+            label.textContent = selected === 0
+                ? 'Keine Auswahl'
+                : (selected === 1 ? '1 ausgewählt' : selected + ' ausgewählt');
+        }
+        if (all) {
+            all.checked = list.length > 0 && selected === list.length;
+            all.indeterminate = selected > 0 && selected < list.length;
+        }
+    }
+    if (all) {
+        all.addEventListener('change', function () {
+            checks().forEach(function (c) { c.checked = all.checked; });
+            sync();
+        });
+    }
+    form.addEventListener('change', function (e) {
+        if (e.target && e.target.classList.contains('listen-row-check')) sync();
+    });
+    sync();
+})();
+</script>
 {% endblock %}

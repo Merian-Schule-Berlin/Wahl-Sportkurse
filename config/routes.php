@@ -22,6 +22,7 @@ return static function (App $app): void {
     $app->get('/', [PublicController::class, 'home']);
     $app->get('/anmelden', [PublicController::class, 'registerForm']);
     $app->post('/anmelden', [PublicController::class, 'registerSubmit']);
+    $app->get('/kursbeschreibungen', [PublicController::class, 'downloadKursbeschreibungen']);
     $app->get('/danke/{token}', [PublicController::class, 'thanks']);
     $app->get('/stornieren/{token}', [PublicController::class, 'cancelForm']);
     $app->post('/stornieren/{token}', [PublicController::class, 'cancelSubmit']);
@@ -45,6 +46,7 @@ return static function (App $app): void {
             $admin->post('/halbjahre/kurse/{kursId}', [HalbjahrController::class, 'updateKurs']);
             $admin->post('/halbjahre/kurse/{kursId}/delete', [HalbjahrController::class, 'deleteKurs']);
             $admin->post('/halbjahre/kursbeschreibungen', [HalbjahrController::class, 'uploadKursbeschreibungen']);
+            $admin->post('/halbjahre/kursbeschreibungen/text', [HalbjahrController::class, 'saveKursbeschreibungenText']);
             $admin->post('/halbjahre/kursbeschreibungen/delete', [HalbjahrController::class, 'deleteKursbeschreibungen']);
             $admin->get('/halbjahre/{id}', [HalbjahrController::class, 'editForm']);
             $admin->post('/halbjahre/{id}', [HalbjahrController::class, 'update']);
@@ -54,6 +56,8 @@ return static function (App $app): void {
             $admin->get('/listen', [ExportController::class, 'index']);
             $admin->get('/listen/anmeldungen.csv', [ExportController::class, 'downloadCsv']);
             $admin->get('/listen/anmeldungen.pdf', [ExportController::class, 'downloadPdf']);
+            $admin->post('/listen/anmeldungen/delete', [ExportController::class, 'deleteSelected']);
+            $admin->post('/listen/anmeldungen/{id}/delete', [ExportController::class, 'deleteAnmeldung']);
 
             $admin->get('/einstellungen', [SettingsController::class, 'form']);
             $admin->post('/einstellungen', [SettingsController::class, 'save']);

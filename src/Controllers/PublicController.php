@@ -23,13 +23,18 @@ final class PublicController
         private readonly AnmeldungService $anmeldungen,
         private readonly CsrfService $csrf,
         private readonly AuthService $auth,
-        private readonly BotProtectionService $botProtection
+        private readonly BotProtectionService $botProtection,
+        private readonly string $uploadDir
     ) {
     }
 
     public function home(Request $request, Response $response): Response
     {
         $all = $this->settings->all();
+        $success = $_SESSION['flash_success'] ?? null;
+        $successToken = $_SESSION['flash_success_token'] ?? null;
+        unset($_SESSION['flash_success'], $_SESSION['flash_success_token']);
+
         return $this->view->render($response, 'public/home.twig', [
             'welcome_text' => $all['welcome_text'] ?? '',
             'welcome_image' => $all['welcome_image'] ?? '',
@@ -37,6 +42,8 @@ final class PublicController
             'registration_start' => $all['registration_start'] ?? '',
             'registration_end' => $all['registration_end'] ?? '',
             'admin_logged_in' => $this->auth->check(),
+            'success' => $success,
+            'success_token' => $successToken,
         ]);
     }
 
@@ -61,6 +68,7 @@ final class PublicController
             'old' => [],
             'admin_test_mode' => !$open && $adminTest,
             'kursbeschreibungen' => $this->kursbeschreibungenUrl(),
+            'kursbeschreibungen_html' => $this->kursbeschreibungenHtml(),
             'bot_protection' => $this->botProtection->widgetConfig(),
         ]);
     }
@@ -103,8 +111,10 @@ final class PublicController
             }
 
             $anmeldung = $this->anmeldungen->register($byId, !$open && $adminTest);
+            $_SESSION['flash_success'] = 'Ihre Anmeldung wurde gespeichert. Eine Bestätigung wurde per E-Mail versendet.';
+            $_SESSION['flash_success_token'] = (string) $anmeldung['token'];
             return $response
-                ->withHeader('Location', '/danke/' . $anmeldung['token'])
+                ->withHeader('Location', '/')
                 ->withStatus(302);
         } catch (\Throwable $e) {
             return $this->view->render($response->withStatus(400), 'public/register.twig', [
@@ -115,6 +125,7 @@ final class PublicController
                 'old' => $data,
                 'admin_test_mode' => !$open && $adminTest,
                 'kursbeschreibungen' => $this->kursbeschreibungenUrl(),
+                'kursbeschreibungen_html' => $this->kursbeschreibungenHtml(),
                 'bot_protection' => $this->botProtection->widgetConfig(),
             ]);
         }
@@ -311,13 +322,86 @@ final class PublicController
         return true;
     }
 
+    public function downloadKursbeschreibungen(Request $request, Response $response): Response
+    {
+        $stored = trim($this->settings->get('kursbeschreibungen_file'));
+        if ($stored === '') {
+            return $response->withStatus(404);
+        }
+
+        $path = rtrim($this->uploadDir, '/\\') . DIRECTORY_SEPARATOR . basename($stored);
+        if (!is_file($path)) {
+            return $response->withStatus(404);
+        }
+
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mime = match ($ext) {
+            'pdf' => 'application/pdf',
+            'doc' => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            default => 'application/octet-stream',
+        };
+
+        $downloadName = trim($this->settings->get('kursbeschreibungen_name'));
+        if ($downloadName === '') {
+            $downloadName = 'Kursbeschreibungen.' . $ext;
+        }
+        $downloadName = str_replace(['"', "\r", "\n"], '', basename($downloadName));
+
+        // PDF kann im Browser geöffnet werden; DOC/DOCX als Download (sonst leere Seite).
+        $disposition = $ext === 'pdf' ? 'inline' : 'attachment';
+
+        $stream = fopen($path, 'rb');
+        if ($stream === false) {
+            return $response->withStatus(500);
+        }
+
+        $response->getBody()->write((string) stream_get_contents($stream));
+        fclose($stream);
+
+        return $response
+            ->withHeader('Content-Type', $mime)
+            ->withHeader('Content-Length', (string) filesize($path))
+            ->withHeader(
+                'Content-Disposition',
+                $disposition . '; filename="' . $downloadName . '"'
+            )
+            ->withHeader('X-Content-Type-Options', 'nosniff')
+            ->withHeader('Cache-Control', 'private, max-age=3600');
+    }
+
     private function kursbeschreibungenUrl(): ?string
     {
         $file = trim($this->settings->get('kursbeschreibungen_file'));
         if ($file === '') {
             return null;
         }
-        return '/uploads/' . rawurlencode(basename($file));
+        return '/kursbeschreibungen';
+    }
+
+    private function kursbeschreibungenHtml(): ?string
+    {
+        $url = $this->kursbeschreibungenUrl();
+        if ($url === null) {
+            return null;
+        }
+
+        $text = trim($this->settings->get('kursbeschreibungen_text'));
+        if ($text === '') {
+            $text = 'Hier findest du eine Übersicht über die [Kursbeschreibungen].';
+        }
+
+        $linkHref = htmlspecialchars($url, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $esc = static fn (string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $attrs = 'href="' . $linkHref . '" target="_blank" rel="noopener"';
+
+        if (preg_match('/^(.*?)\[([^\]]+)\](.*)$/s', $text, $m)) {
+            return $esc($m[1])
+                . '<a ' . $attrs . '>' . $esc($m[2]) . '</a>'
+                . $esc($m[3]);
+        }
+
+        return '<a ' . $attrs . '>' . $esc($text) . '</a>';
     }
 
     private function assertKursInHalbjahr(int $kursId, int $halbjahrId): void

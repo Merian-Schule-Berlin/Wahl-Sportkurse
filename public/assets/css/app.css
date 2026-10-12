@@ -2489,6 +2489,71 @@ form.is-autosaving {
     }
 }
 
+/* Wahl-Sportkurse: Live-Bedingungen */
+.wahl-regeln {
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--card) 88%, var(--bg-accent));
+    padding: 0.9rem 1rem;
+}
+.wahl-regeln[data-complete="1"] {
+    border-color: color-mix(in srgb, var(--brand) 45%, var(--line));
+    background: color-mix(in srgb, var(--brand) 8%, var(--card));
+}
+.wahl-regeln-gesamt {
+    font-weight: 500;
+    color: #6c757d;
+}
+.wahl-regeln[data-complete="1"] .wahl-regeln-gesamt {
+    color: var(--brand-dark);
+}
+.wahl-regeln-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 0.55rem;
+}
+.wahl-regeln-list li {
+    display: grid;
+    grid-template-columns: 1.25rem 1fr;
+    column-gap: 0.55rem;
+    row-gap: 0.1rem;
+    align-items: start;
+}
+.wahl-regeln-icon {
+    width: 1.15rem;
+    height: 1.15rem;
+    margin-top: 0.15rem;
+    border-radius: 50%;
+    border: 2px solid #adb5bd;
+    background: transparent;
+}
+.wahl-regeln-list li[data-state="ok"] .wahl-regeln-icon {
+    border-color: var(--brand);
+    background: var(--brand);
+    box-shadow: inset 0 0 0 2px #fff;
+}
+.wahl-regeln-list li[data-state="bad"] .wahl-regeln-icon {
+    border-color: #b02a37;
+    background: #b02a37;
+    box-shadow: inset 0 0 0 2px #fff;
+}
+.wahl-regeln-list li[data-state="ok"] .wahl-regeln-text {
+    color: var(--brand-dark);
+}
+.wahl-regeln-list li[data-state="bad"] .wahl-regeln-text {
+    color: #842029;
+}
+.wahl-regeln-detail {
+    grid-column: 2;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+.wahl-regeln-list li[data-state="bad"] .wahl-regeln-detail {
+    color: #842029;
+}
+
 /* Wahl-Sportkurse: Ankreuz-Matrix */
 .choice-matrix .choice-col {
     width: 4.5rem;

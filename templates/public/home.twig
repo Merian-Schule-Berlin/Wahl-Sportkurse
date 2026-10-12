@@ -10,6 +10,16 @@
     {% endif %}
     <div class="card-body p-4">
         <h1 class="h2 mb-3">{{ app_name }}</h1>
+        {% if success %}
+            <div class="alert alert-success">
+                <strong>Anmeldung bestätigt.</strong> {{ success }}
+                {% if success_token %}
+                    <div class="mt-2">
+                        <a class="alert-link" href="/danke/{{ success_token }}">Details der Anmeldung anzeigen</a>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
         <div class="mb-3 rich-content">{{ welcome_text|rich }}</div>
         {% if registration_start and registration_end %}
             <p class="fw-semibold mb-3">
