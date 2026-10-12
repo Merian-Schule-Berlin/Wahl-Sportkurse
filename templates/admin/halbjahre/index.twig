@@ -12,13 +12,13 @@
     <div class="card-body">
         <h2 class="h5 mb-2">Kursbeschreibungen</h2>
         <p class="text-muted small mb-3">
-            Datei mit den Beschreibungen der einzelnen Kurse (PDF, DOC oder DOCX).
-            Auf der Anmeldeseite erscheint dann ein Link darauf.
+            Jeder Kurs hat eine eigene Webseite mit Beschreibung.
+            Optional können Sie zusätzlich eine Sammeldatei (PDF/DOC/DOCX) hinterlegen.
         </p>
 
         <form method="post" action="/administrator/halbjahre/kursbeschreibungen/text" class="mb-4">
             {{ csrf.field()|raw }}
-            <label class="form-label" for="kursbeschreibungen_text">Hinweistext auf der Anmeldeseite</label>
+            <label class="form-label" for="kursbeschreibungen_text">Hinweistext auf der Anmeldeseite (Sammeldatei)</label>
             <textarea class="form-control mb-2" name="kursbeschreibungen_text" id="kursbeschreibungen_text" rows="2" required>{{ kursbeschreibungen_text }}</textarea>
             <p class="text-muted small mb-2">
                 Den klickbaren Teil in eckige Klammern setzen, z.&nbsp;B.
@@ -58,6 +58,7 @@
         <p class="text-muted small mb-3">
             Kurse einmal anlegen – sie gelten für alle Halbjahre.
             Pro Halbjahr können Sie einzelne Kurse unter „Bearbeiten“ ausgrauen.
+            {% if kurse|length > 1 %}Reihenfolge per Drag &amp; Drop ändern.{% endif %}
         </p>
 
         <form method="post" action="/administrator/halbjahre/kurse" class="row g-3 align-items-end mb-4">
@@ -82,24 +83,31 @@
                 <table class="table table-bordered align-middle admin-kurs-table mb-0">
                     <thead>
                         <tr>
+                            {% if kurse|length > 1 %}<th class="fachbereich-drag-col" aria-hidden="true"></th>{% endif %}
                             <th>Kurs</th>
                             <th>Bewegungsfeld</th>
-                            <th style="width:6rem">Sort.</th>
                             <th style="width:7rem">Anmeldungen</th>
-                            <th style="width:12rem">Aktionen</th>
+                            <th style="width:16rem">Aktionen</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="kurse-list"
+                           {% if kurse|length > 1 %}
+                           data-reorder-url="/administrator/halbjahre/kurse/reorder"
+                           data-csrf="{{ csrf.token() }}"
+                           {% endif %}>
                     {% for k in kurse %}
-                        <tr>
+                        {% set hasDesc = (k.beschreibung|default('')|striptags|trim) or (k.teaser_bild|default('')) %}
+                        <tr class="fachbereich-row" data-id="{{ k.id }}">
+                            {% if kurse|length > 1 %}
+                                <td class="fachbereich-drag-col">
+                                    <button type="button" class="fachbereich-drag" title="Ziehen zum Sortieren" aria-label="Ziehen zum Sortieren" draggable="true">⋮⋮</button>
+                                </td>
+                            {% endif %}
                             <td>
                                 <input class="form-control" form="kurs-save-{{ k.id }}" type="text" name="name" value="{{ k.name }}" required>
                             </td>
                             <td>
                                 <input class="form-control" form="kurs-save-{{ k.id }}" type="text" name="bewegungsfeld" value="{{ k.bewegungsfeld|default('') }}">
-                            </td>
-                            <td>
-                                <input class="form-control" form="kurs-save-{{ k.id }}" type="number" name="sortierung" value="{{ k.sortierung }}">
                             </td>
                             <td class="text-muted">{{ k.teilnehmer|default(0) }}</td>
                             <td class="text-nowrap">
@@ -107,6 +115,9 @@
                                     {{ csrf.field()|raw }}
                                     <button type="submit" class="btn btn-sm btn-primary">Speichern</button>
                                 </form>
+                                <a class="btn btn-sm btn-outline-primary" href="/administrator/halbjahre/kurse/{{ k.id }}">
+                                    {% if hasDesc %}Beschreibung{% else %}Beschreibung +{% endif %}
+                                </a>
                                 <form method="post" action="/administrator/halbjahre/kurse/{{ k.id }}/delete" class="d-inline" onsubmit="return confirm('Kurs „{{ k.name }}“ wirklich löschen?');">
                                     {{ csrf.field()|raw }}
                                     <input type="hidden" name="redirect" value="/administrator/halbjahre">
@@ -158,4 +169,78 @@
         </tbody>
     </table>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if kurse|length > 1 %}
+<script>
+(function () {
+    var list = document.getElementById('kurse-list');
+    if (!list || !list.getAttribute('data-reorder-url')) return;
+
+    var dragEl = null;
+    var reorderUrl = list.getAttribute('data-reorder-url');
+    var csrf = list.getAttribute('data-csrf');
+
+    list.querySelectorAll('.fachbereich-row').forEach(function (row) {
+        var handle = row.querySelector('.fachbereich-drag');
+        if (!handle) return;
+
+        handle.addEventListener('dragstart', function (e) {
+            dragEl = row;
+            row.classList.add('is-dragging');
+            if (e.dataTransfer) {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', row.getAttribute('data-id') || '');
+            }
+        });
+        handle.addEventListener('dragend', function () {
+            row.classList.remove('is-dragging');
+            list.querySelectorAll('.fachbereich-row').forEach(function (r) {
+                r.classList.remove('drag-over');
+            });
+            dragEl = null;
+            saveOrder();
+        });
+        row.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            if (!dragEl || dragEl === row) return;
+            row.classList.add('drag-over');
+            var rect = row.getBoundingClientRect();
+            var before = (e.clientY - rect.top) < rect.height / 2;
+            if (before) {
+                list.insertBefore(dragEl, row);
+            } else {
+                list.insertBefore(dragEl, row.nextSibling);
+            }
+        });
+        row.addEventListener('dragleave', function () {
+            row.classList.remove('drag-over');
+        });
+        row.addEventListener('drop', function (e) {
+            e.preventDefault();
+            row.classList.remove('drag-over');
+        });
+    });
+
+    function saveOrder() {
+        var ids = Array.prototype.map.call(list.querySelectorAll('.fachbereich-row'), function (row) {
+            return row.getAttribute('data-id');
+        }).filter(Boolean);
+        var body = new URLSearchParams();
+        body.set('_csrf', csrf || '');
+        ids.forEach(function (id) { body.append('order[]', id); });
+        fetch(reorderUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: body.toString(),
+            credentials: 'same-origin'
+        }).catch(function () {});
+    }
+})();
+</script>
+{% endif %}
 {% endblock %}

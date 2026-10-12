@@ -38,7 +38,7 @@
         <h2 class="h5 mb-2">Kurse in diesem Halbjahr</h2>
         <p class="text-muted small mb-3">
             Neue Kurse legen Sie unter <a href="/administrator/halbjahre">Halbjahre &amp; Sportkurse</a> an.
-            Hier grauen Sie Kurse nur für <strong>{{ halbjahr.name }}</strong> aus oder schalten sie wieder frei.
+            Status anklicken, um den Kurs für <strong>{{ halbjahr.name }}</strong> wählbar bzw. nicht wählbar zu schalten.
         </p>
         {% if kurse is empty %}
             <p class="text-muted mb-0">Noch keine Kurse vorhanden. Bitte zuerst global anlegen.</p>
@@ -50,8 +50,7 @@
                             <th>Kurs</th>
                             <th>Bewegungsfeld</th>
                             <th style="width:7rem">Teilnehmer</th>
-                            <th style="width:8rem">Status</th>
-                            <th style="width:10rem">Aktion</th>
+                            <th style="width:10rem">Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -61,18 +60,14 @@
                             <td class="text-muted">{{ k.bewegungsfeld|default('—') }}</td>
                             <td class="text-muted">{{ k.teilnehmer|default(0) }}</td>
                             <td>
-                                {% if k.verfuegbar %}
-                                    <span class="badge text-bg-success">wählbar</span>
-                                {% else %}
-                                    <span class="badge text-bg-secondary">grau</span>
-                                {% endif %}
-                            </td>
-                            <td>
                                 <form method="post" action="/administrator/halbjahre/{{ halbjahr.id }}/kurse/{{ k.id }}/verfuegbar" class="d-inline">
                                     {{ csrf.field()|raw }}
                                     <input type="hidden" name="verfuegbar" value="{{ k.verfuegbar ? '0' : '1' }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-secondary">
-                                        {% if k.verfuegbar %}Grau{% else %}Wählbar{% endif %}
+                                    <button type="submit"
+                                            class="badge border-0 {% if k.verfuegbar %}text-bg-success{% else %}text-bg-secondary{% endif %}"
+                                            title="{% if k.verfuegbar %}Auf nicht wählbar setzen{% else %}Auf wählbar setzen{% endif %}"
+                                            style="cursor:pointer">
+                                        {% if k.verfuegbar %}wählbar{% else %}nicht wählbar{% endif %}
                                     </button>
                                 </form>
                             </td>

@@ -6,6 +6,7 @@ namespace App\Controllers\Admin;
 
 use App\Services\CsrfService;
 use App\Services\HalbjahrService;
+use App\Services\HtmlContentService;
 use App\Services\SettingsService;
 use App\Services\UploadService;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -20,7 +21,8 @@ final class HalbjahrController
         private readonly HalbjahrService $halbjahre,
         private readonly CsrfService $csrf,
         private readonly SettingsService $settings,
-        private readonly UploadService $uploads
+        private readonly UploadService $uploads,
+        private readonly HtmlContentService $html
     ) {
     }
 
@@ -116,6 +118,24 @@ final class HalbjahrController
         return $response->withHeader('Location', '/administrator/halbjahre')->withStatus(302);
     }
 
+    public function editKursForm(Request $request, Response $response, array $args): Response
+    {
+        $kurs = $this->halbjahre->findKurs((int) ($args['kursId'] ?? 0));
+        if ($kurs === null) {
+            return $response->withStatus(404);
+        }
+
+        $flash = $_SESSION['flash'] ?? null;
+        $error = $_SESSION['flash_error'] ?? null;
+        unset($_SESSION['flash'], $_SESSION['flash_error']);
+
+        return $this->view->render($response, 'admin/halbjahre/kurs_edit.twig', [
+            'kurs' => $kurs,
+            'flash' => $flash,
+            'error' => $error,
+        ]);
+    }
+
     public function updateKurs(Request $request, Response $response, array $args): Response
     {
         $kursId = (int) $args['kursId'];
@@ -125,18 +145,98 @@ final class HalbjahrController
         }
 
         $data = (array) $request->getParsedBody();
+        $files = $request->getUploadedFiles();
         $name = trim((string) ($data['name'] ?? ''));
+        $redirectEdit = !empty($data['edit_beschreibung']);
+
         if ($name === '') {
             $_SESSION['flash_error'] = 'Bitte einen Kursnamen angeben.';
-            return $response->withHeader('Location', '/administrator/halbjahre')->withStatus(302);
+            return $response->withHeader(
+                'Location',
+                $redirectEdit
+                    ? '/administrator/halbjahre/kurse/' . $kursId
+                    : '/administrator/halbjahre'
+            )->withStatus(302);
         }
 
-        $this->halbjahre->updateKurs($kursId, [
-            'name' => $name,
-            'bewegungsfeld' => trim((string) ($data['bewegungsfeld'] ?? '')),
-            'sortierung' => (int) ($data['sortierung'] ?? $kurs['sortierung']),
-        ]);
-        $_SESSION['flash'] = 'Kurs gespeichert.';
+        try {
+            $payload = [
+                'name' => $name,
+                'bewegungsfeld' => trim((string) ($data['bewegungsfeld'] ?? '')),
+            ];
+
+            if ($redirectEdit) {
+                $payload['beschreibung'] = $this->html->sanitize((string) ($data['beschreibung'] ?? ''));
+                $bild = $kurs['teaser_bild'] ?? null;
+                /** @var UploadedFileInterface|null $upload */
+                $upload = $files['teaser_bild'] ?? null;
+                if ($upload !== null && $upload->getError() !== UPLOAD_ERR_NO_FILE) {
+                    $tmp = tempnam(sys_get_temp_dir(), 'upl');
+                    if ($tmp === false) {
+                        throw new \RuntimeException('Temporäre Datei fehlgeschlagen.');
+                    }
+                    $upload->moveTo($tmp);
+                    $new = $this->uploads->storeImage([
+                        'name' => $upload->getClientFilename() ?? 'kurs.jpg',
+                        'type' => $upload->getClientMediaType() ?? '',
+                        'tmp_name' => $tmp,
+                        'error' => UPLOAD_ERR_OK,
+                        'size' => $upload->getSize() ?? 0,
+                    ], 'kurs');
+                    $this->uploads->delete($bild !== null && $bild !== '' ? (string) $bild : null);
+                    $bild = $new;
+                }
+                if (!empty($data['remove_image'])) {
+                    $this->uploads->delete($bild !== null && $bild !== '' ? (string) $bild : null);
+                    $bild = null;
+                }
+                $payload['teaser_bild'] = $bild;
+            }
+
+            $this->halbjahre->updateKurs($kursId, $payload);
+            $_SESSION['flash'] = 'Kurs gespeichert.';
+        } catch (\Throwable $e) {
+            $_SESSION['flash_error'] = $e->getMessage();
+            return $response->withHeader(
+                'Location',
+                $redirectEdit
+                    ? '/administrator/halbjahre/kurse/' . $kursId
+                    : '/administrator/halbjahre'
+            )->withStatus(302);
+        }
+
+        return $response->withHeader(
+            'Location',
+            $redirectEdit
+                ? '/administrator/halbjahre/kurse/' . $kursId
+                : '/administrator/halbjahre'
+        )->withStatus(302);
+    }
+
+    public function reorderKurse(Request $request, Response $response): Response
+    {
+        $data = (array) $request->getParsedBody();
+        $order = $data['order'] ?? [];
+        if (!is_array($order)) {
+            $order = [];
+        }
+        $isAjax = strtolower($request->getHeaderLine('X-Requested-With')) === 'xmlhttprequest';
+
+        try {
+            $this->halbjahre->reorderKurse(array_map('intval', $order));
+            if ($isAjax) {
+                $response->getBody()->write(json_encode(['ok' => true], JSON_THROW_ON_ERROR));
+                return $response->withHeader('Content-Type', 'application/json');
+            }
+            $_SESSION['flash'] = 'Reihenfolge gespeichert.';
+        } catch (\Throwable $e) {
+            if ($isAjax) {
+                $response->getBody()->write(json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_THROW_ON_ERROR));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+            }
+            $_SESSION['flash_error'] = $e->getMessage();
+        }
+
         return $response->withHeader('Location', '/administrator/halbjahre')->withStatus(302);
     }
 
@@ -148,7 +248,15 @@ final class HalbjahrController
         }
 
         try {
+            $kurs = $this->halbjahre->findKurs($kursId);
             $this->halbjahre->deleteKurs($kursId);
+            if ($kurs !== null) {
+                $this->uploads->delete(
+                    trim((string) ($kurs['teaser_bild'] ?? '')) !== ''
+                        ? (string) $kurs['teaser_bild']
+                        : null
+                );
+            }
             $_SESSION['flash'] = 'Kurs gelöscht.';
         } catch (\Throwable $e) {
             $_SESSION['flash_error'] = $e->getMessage();

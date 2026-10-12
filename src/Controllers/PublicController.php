@@ -325,6 +325,27 @@ final class PublicController
         return true;
     }
 
+    public function kurs(Request $request, Response $response, array $args): Response
+    {
+        $kurs = $this->halbjahre->findKurs((int) ($args['id'] ?? 0));
+        if ($kurs === null) {
+            return $response->withStatus(404);
+        }
+        $text = trim(strip_tags((string) ($kurs['beschreibung'] ?? '')));
+        $bild = trim((string) ($kurs['teaser_bild'] ?? ''));
+        if ($text === '' && $bild === '') {
+            return $this->view->render($response->withStatus(404), 'public/kurs.twig', [
+                'kurs' => $kurs,
+                'missing' => true,
+            ]);
+        }
+
+        return $this->view->render($response, 'public/kurs.twig', [
+            'kurs' => $kurs,
+            'missing' => false,
+        ]);
+    }
+
     public function downloadKursbeschreibungen(Request $request, Response $response): Response
     {
         $stored = trim($this->settings->get('kursbeschreibungen_file'));

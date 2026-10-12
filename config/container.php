@@ -238,7 +238,8 @@ return [
             $c->get(HalbjahrService::class),
             $c->get(CsrfService::class),
             $c->get(SettingsService::class),
-            $c->get(UploadService::class)
+            $c->get(UploadService::class),
+            $c->get(HtmlContentService::class)
         );
     },
     SettingsController::class => static function (ContainerInterface $c) {

@@ -17,6 +17,7 @@ final class SchemaMigrator
             $this->ensureVornameNachname($pdo);
             $this->ensureZuordnungAlt($pdo);
             $this->ensureJahrgaengeTabelle($pdo);
+            $this->ensureKursBeschreibung($pdo);
         } catch (\Throwable) {
             // Schema-Migration darf den Request nicht abbrechen.
         }
@@ -31,6 +32,27 @@ final class SchemaMigrator
             $pdo->exec(
                 "ALTER TABLE sportkurse
                  ADD COLUMN bewegungsfeld VARCHAR(200) NOT NULL DEFAULT '' AFTER name"
+            );
+        }
+    }
+
+    private function ensureKursBeschreibung(PDO $pdo): void
+    {
+        if (!$this->tableExists($pdo, 'sportkurse')) {
+            return;
+        }
+        if (!$this->columnExists($pdo, 'sportkurse', 'beschreibung')) {
+            $after = $this->columnExists($pdo, 'sportkurse', 'bewegungsfeld') ? 'bewegungsfeld' : 'name';
+            $pdo->exec(
+                "ALTER TABLE sportkurse
+                 ADD COLUMN beschreibung MEDIUMTEXT NULL AFTER `{$after}`"
+            );
+        }
+        if (!$this->columnExists($pdo, 'sportkurse', 'teaser_bild')) {
+            $after = $this->columnExists($pdo, 'sportkurse', 'beschreibung') ? 'beschreibung' : 'name';
+            $pdo->exec(
+                "ALTER TABLE sportkurse
+                 ADD COLUMN teaser_bild VARCHAR(255) NULL AFTER `{$after}`"
             );
         }
     }

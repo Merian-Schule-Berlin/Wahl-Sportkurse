@@ -69,7 +69,20 @@
                         <tbody>
                         {% for k in kurse %}
                             <tr>
-                                <td><span class="fw-medium">{{ k.name }}</span></td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <span class="fw-medium">{{ k.name }}</span>
+                                        {% if k.has_beschreibung|default(false) %}
+                                            <a class="btn btn-sm btn-outline-primary py-0 px-2"
+                                               href="/kurs/{{ k.id }}"
+                                               target="_blank"
+                                               rel="noopener"
+                                               title="Beschreibung von {{ k.name }}">
+                                                Info
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
                                 <td class="text-muted">{{ k.bewegungsfeld|default('') }}</td>
                                 {% for hj in halbjahre %}
                                     {% set hjId = hj.id %}

@@ -1,0 +1,29 @@
+{% extends 'layouts/base.twig' %}
+{% block title %}{{ kurs.name }} · {{ app_name }}{% endblock %}
+{% block content %}
+<article class="card app-card">
+    <div class="card-body p-4">
+        <p class="mb-2">
+            <a class="btn btn-sm btn-outline-primary" href="/anmelden">← Zurück zur Anmeldung</a>
+        </p>
+
+        <h1 class="h2 mb-2">{{ kurs.name }}</h1>
+        {% if kurs.bewegungsfeld %}
+            <p class="text-muted mb-3">Bewegungsfeld: {{ kurs.bewegungsfeld }}</p>
+        {% endif %}
+
+        {% if missing|default(false) %}
+            <div class="alert alert-warning mb-0">Für diesen Kurs liegt noch keine Beschreibung vor.</div>
+        {% else %}
+            {% if kurs.teaser_bild %}
+                <div class="teaser-media teaser-media-hero mb-4">
+                    <img src="/uploads/{{ kurs.teaser_bild }}" alt="{{ kurs.name }}">
+                </div>
+            {% endif %}
+            {% if kurs.beschreibung %}
+                <div class="rich-content">{{ kurs.beschreibung|rich }}</div>
+            {% endif %}
+        {% endif %}
+    </div>
+</article>
+{% endblock %}

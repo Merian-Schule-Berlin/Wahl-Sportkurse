@@ -1,0 +1,58 @@
+{% extends 'layouts/admin.twig' %}
+{% block title %}{{ kurs.name }} · Beschreibung{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="h3 mb-0">Kursbeschreibung</h1>
+    <a class="btn btn-outline-primary btn-sm" href="/administrator/halbjahre">← Zurück zur Liste</a>
+</div>
+
+{% if flash %}<div class="alert alert-success">{{ flash }}</div>{% endif %}
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+<form method="post" action="/administrator/halbjahre/kurse/{{ kurs.id }}" enctype="multipart/form-data" class="card app-card">
+    <div class="card-body">
+        {{ csrf.field()|raw }}
+        <input type="hidden" name="edit_beschreibung" value="1">
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label class="form-label" for="name">Kursname</label>
+                <input class="form-control" type="text" name="name" id="name" required value="{{ kurs.name }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="bewegungsfeld">Bewegungsfeld</label>
+                <input class="form-control" type="text" name="bewegungsfeld" id="bewegungsfeld" value="{{ kurs.bewegungsfeld|default('') }}">
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="beschreibung">Beschreibung (Webseite)</label>
+            <textarea class="form-control rich-editor" name="beschreibung" id="beschreibung" rows="12">{{ kurs.beschreibung|default('') }}</textarea>
+            <div class="form-text">Wird unter <code>/kurs/{{ kurs.id }}</code> ohne Download angezeigt.</div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="teaser_bild">Bild (optional)</label>
+            <input class="form-control" type="file" name="teaser_bild" id="teaser_bild" accept="image/jpeg,image/png,image/webp,image/gif">
+            {% if kurs.teaser_bild|default('') %}
+                <div class="mt-2 d-flex flex-wrap align-items-center gap-3">
+                    <img class="thumb" src="/uploads/{{ kurs.teaser_bild }}" alt="" style="max-height:96px;width:auto;">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="remove_image" value="1" id="remove_image">
+                        <label class="form-check-label" for="remove_image">Bild entfernen</label>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-primary">Speichern</button>
+            <a class="btn btn-outline-primary" href="/kurs/{{ kurs.id }}" target="_blank" rel="noopener">Vorschau öffnen</a>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+{% include 'partials/rich_editor_assets.twig' %}
+{% endblock %}

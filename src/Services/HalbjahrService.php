@@ -170,21 +170,59 @@ final class HalbjahrService
     }
 
     /**
-     * @param array{name:string,bewegungsfeld?:string,sortierung:int} $data
+     * @param array{
+     *     name:string,
+     *     bewegungsfeld?:string,
+     *     beschreibung?:?string,
+     *     teaser_bild?:?string,
+     *     sortierung?:int
+     * } $data
      */
     public function updateKurs(int $id, array $data): void
     {
+        $existing = $this->findKurs($id);
+        if ($existing === null) {
+            throw new RuntimeException('Kurs nicht gefunden.');
+        }
+
         $stmt = $this->pdo->prepare(
             'UPDATE sportkurse
-             SET name = :name, bewegungsfeld = :bewegungsfeld, sortierung = :sortierung
+             SET name = :name,
+                 bewegungsfeld = :bewegungsfeld,
+                 beschreibung = :beschreibung,
+                 teaser_bild = :teaser_bild,
+                 sortierung = :sortierung
              WHERE id = :id'
         );
         $stmt->execute([
             'id' => $id,
             'name' => $data['name'],
             'bewegungsfeld' => trim((string) ($data['bewegungsfeld'] ?? '')),
-            'sortierung' => $data['sortierung'],
+            'beschreibung' => array_key_exists('beschreibung', $data)
+                ? $data['beschreibung']
+                : ($existing['beschreibung'] ?? null),
+            'teaser_bild' => array_key_exists('teaser_bild', $data)
+                ? $data['teaser_bild']
+                : ($existing['teaser_bild'] ?? null),
+            'sortierung' => array_key_exists('sortierung', $data)
+                ? (int) $data['sortierung']
+                : (int) ($existing['sortierung'] ?? 0),
         ]);
+    }
+
+    /** @param list<int> $orderedIds */
+    public function reorderKurse(array $orderedIds): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE sportkurse SET sortierung = :sort WHERE id = :id');
+        $sort = 0;
+        foreach ($orderedIds as $id) {
+            $id = (int) $id;
+            if ($id < 1) {
+                continue;
+            }
+            $stmt->execute(['sort' => $sort, 'id' => $id]);
+            $sort++;
+        }
     }
 
     public function setKursVerfuegbar(int $kursId, int $halbjahrId, bool $verfuegbar): void
@@ -240,10 +278,15 @@ final class HalbjahrService
     {
         $halbjahre = $this->all(true);
         $kurse = $this->pdo->query(
-            'SELECT id, name, bewegungsfeld, sortierung
+            'SELECT id, name, bewegungsfeld, beschreibung, teaser_bild, sortierung
              FROM sportkurse
              ORDER BY sortierung ASC, name ASC'
         )->fetchAll();
+        foreach ($kurse as &$k) {
+            $text = trim(strip_tags((string) ($k['beschreibung'] ?? '')));
+            $k['has_beschreibung'] = $text !== '' || trim((string) ($k['teaser_bild'] ?? '')) !== '';
+        }
+        unset($k);
 
         $avail = [];
         foreach ($this->pdo->query('SELECT kurs_id, halbjahr_id, verfuegbar FROM kurs_halbjahr') as $row) {

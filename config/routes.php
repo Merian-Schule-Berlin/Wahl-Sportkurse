@@ -23,6 +23,7 @@ return static function (App $app): void {
     $app->get('/anmelden', [PublicController::class, 'registerForm']);
     $app->post('/anmelden', [PublicController::class, 'registerSubmit']);
     $app->get('/kursbeschreibungen', [PublicController::class, 'downloadKursbeschreibungen']);
+    $app->get('/kurs/{id}', [PublicController::class, 'kurs']);
     $app->get('/danke/{token}', [PublicController::class, 'thanks']);
     $app->get('/stornieren/{token}', [PublicController::class, 'cancelForm']);
     $app->post('/stornieren/{token}', [PublicController::class, 'cancelSubmit']);
@@ -43,6 +44,8 @@ return static function (App $app): void {
 
             $admin->get('/halbjahre', [HalbjahrController::class, 'index']);
             $admin->post('/halbjahre/kurse', [HalbjahrController::class, 'addKurs']);
+            $admin->post('/halbjahre/kurse/reorder', [HalbjahrController::class, 'reorderKurse']);
+            $admin->get('/halbjahre/kurse/{kursId}', [HalbjahrController::class, 'editKursForm']);
             $admin->post('/halbjahre/kurse/{kursId}', [HalbjahrController::class, 'updateKurs']);
             $admin->post('/halbjahre/kurse/{kursId}/delete', [HalbjahrController::class, 'deleteKurs']);
             $admin->post('/halbjahre/kursbeschreibungen', [HalbjahrController::class, 'uploadKursbeschreibungen']);
