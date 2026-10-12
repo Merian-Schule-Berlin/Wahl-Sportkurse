@@ -34,8 +34,10 @@
                         <tbody>
                         {% for hj in halbjahre %}
                             {% set hjId = hj.id %}
-                            {% set oldWahl = old.wahl[hjId]|default(old.wahl[hjId|string]|default('')) %}
-                            {% set oldAlt = old.alt[hjId]|default(old.alt[hjId|string]|default('')) %}
+                            {% set wahlMap = old.wahl|default({}) %}
+                            {% set altMap = old.alt|default({}) %}
+                            {% set oldWahl = attribute(wahlMap, hjId)|default(attribute(wahlMap, hjId ~ '')|default('')) %}
+                            {% set oldAlt = attribute(altMap, hjId)|default(attribute(altMap, hjId ~ '')|default('')) %}
                             <tr>
                                 <th scope="row">{{ hj.name }}</th>
                                 <td>
