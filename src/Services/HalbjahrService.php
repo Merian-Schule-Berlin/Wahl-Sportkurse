@@ -172,7 +172,8 @@ final class HalbjahrService
     {
         $list = [];
         foreach ($this->all(true) as $hj) {
-            $kurse = $this->kurseFor((int) $hj['id'], true);
+            // Alle Kurse laden – inaktive erscheinen grau/gesperrt im Formular
+            $kurse = $this->kurseFor((int) $hj['id'], false);
             foreach ($kurse as &$kurs) {
                 $kap = (int) $kurs['kapazitaet'];
                 $belegt = (int) ($kurs['belegt'] ?? 0);

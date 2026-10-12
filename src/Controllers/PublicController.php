@@ -291,7 +291,13 @@ final class PublicController
             return false;
         }
         foreach ($halbjahre as $hj) {
-            if (count($hj['kurse'] ?? []) < 2) {
+            $selectable = 0;
+            foreach ($hj['kurse'] ?? [] as $kurs) {
+                if ((int) ($kurs['aktiv'] ?? 0) === 1) {
+                    $selectable++;
+                }
+            }
+            if ($selectable < 2) {
                 return false;
             }
         }

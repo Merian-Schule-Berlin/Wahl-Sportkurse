@@ -2489,11 +2489,28 @@ form.is-autosaving {
     }
 }
 
-/* Wahl-Sportkurse: Anmeldetabelle */
-.choice-table th,
-.choice-table td {
-    vertical-align: middle;
+/* Wahl-Sportkurse: Ankreuz-Matrix */
+.choice-matrix .choice-col {
+    width: 6.5rem;
 }
-.choice-table select.form-select {
-    min-width: 12rem;
+.choice-matrix .choice-radio {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: 0;
+    cursor: pointer;
+}
+.choice-matrix tr.is-gray,
+.admin-kurs-table tr.is-gray {
+    background: #e9ecef;
+    color: #6c757d;
+}
+.choice-matrix tr.is-gray td {
+    background: #e9ecef;
+}
+.choice-blocked {
+    color: #adb5bd;
+    font-weight: 600;
+}
+.admin-kurs-table tr.is-gray input.form-control {
+    background: #f1f3f5;
 }
