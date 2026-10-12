@@ -335,6 +335,19 @@ final class PublicController
         }
 
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $downloadName = $this->kursbeschreibungenDownloadName($ext);
+        $params = $request->getQueryParams();
+        $forceDownload = isset($params['download']);
+        $accept = $request->getHeaderLine('Accept');
+        $wantsHtml = str_contains($accept, 'text/html');
+
+        // Bei normalem Klick zuerst Hilfeseite (DOCX = sonst oft leere Browserseite).
+        if ($wantsHtml && !$forceDownload) {
+            return $this->view->render($response, 'public/kursbeschreibungen.twig', [
+                'filename' => $downloadName,
+            ]);
+        }
+
         $mime = match ($ext) {
             'pdf' => 'application/pdf',
             'doc' => 'application/msword',
@@ -342,32 +355,30 @@ final class PublicController
             default => 'application/octet-stream',
         };
 
-        $downloadName = trim($this->settings->get('kursbeschreibungen_name'));
-        if ($downloadName === '') {
-            $downloadName = 'Kursbeschreibungen.' . $ext;
-        }
-        $downloadName = str_replace(['"', "\r", "\n"], '', basename($downloadName));
-
-        // PDF kann im Browser geöffnet werden; DOC/DOCX als Download (sonst leere Seite).
-        $disposition = $ext === 'pdf' ? 'inline' : 'attachment';
-
         $stream = fopen($path, 'rb');
         if ($stream === false) {
             return $response->withStatus(500);
         }
 
-        $response->getBody()->write((string) stream_get_contents($stream));
+        $body = (string) stream_get_contents($stream);
         fclose($stream);
 
-        return $response
+        $asciiName = preg_replace('/[^\x20-\x7E]/', '_', $downloadName) ?: ('Kursbeschreibungen.' . $ext);
+        $asciiName = str_replace(['"', '\\'], '_', $asciiName);
+        $utfName = rawurlencode($downloadName);
+
+        $response = $response
             ->withHeader('Content-Type', $mime)
-            ->withHeader('Content-Length', (string) filesize($path))
+            ->withHeader('Content-Length', (string) strlen($body))
             ->withHeader(
                 'Content-Disposition',
-                $disposition . '; filename="' . $downloadName . '"'
+                'attachment; filename="' . $asciiName . '"; filename*=UTF-8\'\'' . $utfName
             )
             ->withHeader('X-Content-Type-Options', 'nosniff')
-            ->withHeader('Cache-Control', 'private, max-age=3600');
+            ->withHeader('Cache-Control', 'no-store');
+
+        $response->getBody()->write($body);
+        return $response;
     }
 
     private function kursbeschreibungenUrl(): ?string
@@ -377,6 +388,17 @@ final class PublicController
             return null;
         }
         return '/kursbeschreibungen';
+    }
+
+    private function kursbeschreibungenDownloadName(string $fallbackExt = 'pdf'): string
+    {
+        $downloadName = trim($this->settings->get('kursbeschreibungen_name'));
+        if ($downloadName === '') {
+            $stored = trim($this->settings->get('kursbeschreibungen_file'));
+            $ext = $stored !== '' ? strtolower(pathinfo($stored, PATHINFO_EXTENSION)) : $fallbackExt;
+            $downloadName = 'Kursbeschreibungen.' . ($ext !== '' ? $ext : $fallbackExt);
+        }
+        return str_replace(["\r", "\n"], '', basename($downloadName));
     }
 
     private function kursbeschreibungenHtml(): ?string
@@ -393,7 +415,7 @@ final class PublicController
 
         $linkHref = htmlspecialchars($url, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $esc = static fn (string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $attrs = 'href="' . $linkHref . '" target="_blank" rel="noopener"';
+        $attrs = 'href="' . $linkHref . '"';
 
         if (preg_match('/^(.*?)\[([^\]]+)\](.*)$/s', $text, $m)) {
             return $esc($m[1])

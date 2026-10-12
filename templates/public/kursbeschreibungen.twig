@@ -1,0 +1,24 @@
+{% extends 'layouts/base.twig' %}
+{% block title %}Kursbeschreibungen · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="card app-card">
+    <div class="card-body p-4">
+        <h1 class="h3 mb-3">Kursbeschreibungen</h1>
+        <p class="mb-3">
+            Die Kursbeschreibungen liegen als Datei vor und werden heruntergeladen
+            (Word-Dokumente können im Browser nicht angezeigt werden).
+        </p>
+        <p class="mb-4">
+            <a class="btn btn-primary btn-lg"
+               href="/kursbeschreibungen?download=1"
+               download="{{ filename }}">
+                {{ filename }} herunterladen
+            </a>
+        </p>
+        <p class="mb-0">
+            <a class="btn btn-outline-primary" href="/anmelden">Zurück zur Anmeldung</a>
+            <a class="btn btn-outline-secondary ms-2" href="/">Zur Startseite</a>
+        </p>
+    </div>
+</section>
+{% endblock %}
