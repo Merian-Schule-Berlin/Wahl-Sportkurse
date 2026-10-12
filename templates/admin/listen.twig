@@ -1,33 +1,141 @@
 {% extends 'layouts/admin.twig' %}
 {% block title %}Kursteilnehmer{% endblock %}
 {% block content %}
+{% macro sort_link(label, key, sort, dir, jahrgang, search, selected_halbjahre) %}
+    {% set nextDir = (sort == key and dir == 'asc') ? 'desc' : 'asc' %}
+    <a href="/administrator/listen?jahrgang={{ jahrgang|url_encode }}&amp;tab=alle&amp;sort={{ key|url_encode }}&amp;dir={{ nextDir }}{% if search %}&amp;q={{ search|url_encode }}{% endif %}{% for hid in selected_halbjahre %}&amp;hj[]={{ hid }}{% endfor %}"
+       class="text-decoration-none text-body">
+        {{ label }}
+        {% if sort == key %}
+            <span class="text-muted">{% if dir == 'asc' %}▲{% else %}▼{% endif %}</span>
+        {% endif %}
+    </a>
+{% endmacro %}
+{% import _self as ui %}
+
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h1 class="h3 mb-0">Kursteilnehmer <span class="text-muted fs-6">({{ active_count }} Anmeldung{% if active_count != 1 %}en{% endif %})</span></h1>
+    <h1 class="h3 mb-0">
+        Kursteilnehmer
+        <span class="text-muted fs-6">({{ active_count }} Anmeldung{% if active_count != 1 %}en{% endif %} · Jahrgang {{ jahrgang }})</span>
+    </h1>
     <div class="d-flex gap-2">
-        <a class="btn btn-outline-primary btn-sm" href="/administrator/listen/anmeldungen.csv">CSV exportieren</a>
-        <a class="btn btn-outline-primary btn-sm" href="/administrator/listen/anmeldungen.pdf">PDF exportieren</a>
+        <a class="btn btn-outline-primary btn-sm" href="/administrator/listen/anmeldungen.csv?jahrgang={{ jahrgang|url_encode }}">CSV exportieren</a>
+        <a class="btn btn-outline-primary btn-sm" href="/administrator/listen/anmeldungen.pdf?jahrgang={{ jahrgang|url_encode }}">PDF exportieren</a>
     </div>
 </div>
 
 {% if flash %}<div class="alert alert-success">{{ flash }}</div>{% endif %}
 {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
 
+<section class="card app-card mb-3">
+    <div class="card-body py-3">
+        <form method="get" action="/administrator/listen" class="row g-3 align-items-end">
+            <input type="hidden" name="tab" id="listen-tab" value="{{ tab|default('uebersicht') }}">
+            <input type="hidden" name="sort" value="{{ sort }}">
+            <input type="hidden" name="dir" value="{{ dir }}">
+            <div class="col-md-3">
+                <label class="form-label" for="jahrgang">Jahrgang (Doppeljahr)</label>
+                <select class="form-select" name="jahrgang" id="jahrgang">
+                    {% for j in jahrgaenge %}
+                        <option value="{{ j }}" {% if j == jahrgang %}selected{% endif %}>
+                            {{ j }}{% if j == aktueller_jahrgang %} · aktuell{% endif %}
+                        </option>
+                    {% else %}
+                        <option value="{{ jahrgang }}" selected>{{ jahrgang }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">
+                    Jahrgänge verwalten unter
+                    <a href="/administrator/einstellungen?tab=zeitraum">Einstellungen → Jahrgänge &amp; Zeitraum</a>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="q">Suche</label>
+                <input class="form-control" type="search" name="q" id="q"
+                       value="{{ search|default('') }}"
+                       placeholder="Nachname, Vorname, E-Mail …">
+            </div>
+            <div class="col-md-5">
+                <span class="form-label d-block">Halbjahre (für Tab „Nach Kurs“)</span>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    {% for hj in halbjahre %}
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" name="hj[]" value="{{ hj.id }}"
+                                   id="hj_{{ hj.id }}"
+                                   {% if hj.id in selected_halbjahre %}checked{% endif %}>
+                            <label class="form-check-label" for="hj_{{ hj.id }}">{{ hj.name }}</label>
+                        </div>
+                    {% endfor %}
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="hj-select-all">Alle</button>
+                </div>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-outline-primary btn-sm">Anzeigen</button>
+                {% if search %}
+                    <a class="btn btn-outline-primary btn-sm" href="/administrator/listen?jahrgang={{ jahrgang|url_encode }}&amp;tab={{ tab|default('kurse') }}{% for hid in selected_halbjahre %}&amp;hj[]={{ hid }}{% endfor %}">Suche zurücksetzen</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</section>
+
 <ul class="nav nav-tabs mb-3" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="tab-alle" data-bs-toggle="tab" data-bs-target="#pane-alle" type="button" role="tab">Alle Anmeldungen</button>
+        <button class="nav-link {% if tab == 'uebersicht' or tab is empty %}active{% endif %}" id="tab-uebersicht" data-bs-toggle="tab" data-bs-target="#pane-uebersicht" type="button" role="tab">Übersicht (alle HJ)</button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-kurse" data-bs-toggle="tab" data-bs-target="#pane-kurse" type="button" role="tab">Nach Kurs</button>
+        <button class="nav-link {% if tab == 'kurse' %}active{% endif %}" id="tab-kurse" data-bs-toggle="tab" data-bs-target="#pane-kurse" type="button" role="tab">Nach Kurs (Filter)</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link {% if tab == 'alle' %}active{% endif %}" id="tab-alle" data-bs-toggle="tab" data-bs-target="#pane-alle" type="button" role="tab">Alle Anmeldungen</button>
     </li>
 </ul>
 
 <div class="tab-content">
-    <div class="tab-pane fade show active" id="pane-alle" role="tabpanel">
+    <div class="tab-pane fade {% if tab == 'uebersicht' or tab is empty %}show active{% endif %}" id="pane-uebersicht" role="tabpanel">
+        <p class="text-muted small mb-0">Gesamtübersicht über alle Halbjahre für Jahrgang {{ jahrgang }}.</p>
+        {% include 'admin/partials/kurs_teilnehmer_bloecke.twig' with {
+            blocks: nach_kurs_alle,
+            jahrgang: jahrgang,
+            search: search|default(''),
+            selected_halbjahre: selected_halbjahre,
+            return_tab: 'uebersicht',
+            empty_message: 'Keine Teilnehmer für Jahrgang ' ~ jahrgang ~ '.'
+        } %}
+    </div>
+
+    <div class="tab-pane fade {% if tab == 'kurse' %}show active{% endif %}" id="pane-kurse" role="tabpanel">
+        <p class="text-muted small mb-0">Nur die oben ausgewählten Halbjahre.</p>
+        {% include 'admin/partials/kurs_teilnehmer_bloecke.twig' with {
+            blocks: nach_kurs,
+            jahrgang: jahrgang,
+            search: search|default(''),
+            selected_halbjahre: selected_halbjahre,
+            return_tab: 'kurse',
+            empty_message: 'Keine Teilnehmer für die gewählten Halbjahre in Jahrgang ' ~ jahrgang ~ '.'
+        } %}
+    </div>
+
+    <div class="tab-pane fade {% if tab == 'alle' %}show active{% endif %}" id="pane-alle" role="tabpanel">
         {% if anmeldungen is empty %}
-            <p class="text-muted">Noch keine aktiven Anmeldungen.</p>
+            <p class="text-muted">
+                {% if search %}
+                    Keine Treffer für „{{ search }}“ in Jahrgang {{ jahrgang }}.
+                {% else %}
+                    Keine aktiven Anmeldungen für Jahrgang {{ jahrgang }}.
+                {% endif %}
+            </p>
         {% else %}
             <form method="post" action="/administrator/listen/anmeldungen/delete" id="listen-delete-form">
                 {{ csrf.field()|raw }}
+                <input type="hidden" name="jahrgang" value="{{ jahrgang }}">
+                <input type="hidden" name="sort" value="{{ sort }}">
+                <input type="hidden" name="dir" value="{{ dir }}">
+                <input type="hidden" name="search" value="{{ search|default('') }}">
+                <input type="hidden" name="tab" value="alle">
+                {% for hid in selected_halbjahre %}
+                    <input type="hidden" name="hj[]" value="{{ hid }}">
+                {% endfor %}
                 <div class="d-flex flex-wrap gap-2 mb-2">
                     <button type="submit" class="btn btn-sm btn-outline-danger" id="listen-delete-selected" disabled
                             onclick="return confirm('Ausgewählte Anmeldungen wirklich löschen?');">
@@ -42,36 +150,67 @@
                                 <th style="width:2.5rem">
                                     <input class="form-check-input" type="checkbox" id="listen-select-all" title="Alle auswählen" aria-label="Alle auswählen">
                                 </th>
-                                <th>Name</th>
-                                <th>Tutorium</th>
-                                <th>E-Mail</th>
-                                <th>HJ1 (1. / Alt.)</th>
-                                <th>HJ2 (1. / Alt.)</th>
-                                <th>HJ3 (1. / Alt.)</th>
-                                <th>HJ4 (1. / Alt.)</th>
-                                <th>Datum</th>
+                                <th>{{ ui.sort_link('Nachname', 'nachname', sort, dir, jahrgang, search|default(''), selected_halbjahre) }}</th>
+                                <th>{{ ui.sort_link('Vorname', 'vorname', sort, dir, jahrgang, search|default(''), selected_halbjahre) }}</th>
+                                <th>{{ ui.sort_link('Tutorium', 'tutorium', sort, dir, jahrgang, search|default(''), selected_halbjahre) }}</th>
+                                <th>{{ ui.sort_link('E-Mail', 'email', sort, dir, jahrgang, search|default(''), selected_halbjahre) }}</th>
+                                <th>{{ ui.sort_link('HJ1', 'hj1', sort, dir, jahrgang, search|default(''), selected_halbjahre) }}</th>
+                                <th>{{ ui.sort_link('HJ2', 'hj2', sort, dir, jahrgang, search|default(''), selected_halbjahre) }}</th>
+                                <th>{{ ui.sort_link('HJ3', 'hj3', sort, dir, jahrgang, search|default(''), selected_halbjahre) }}</th>
+                                <th>{{ ui.sort_link('HJ4', 'hj4', sort, dir, jahrgang, search|default(''), selected_halbjahre) }}</th>
+                                <th>{{ ui.sort_link('Datum', 'created_at', sort, dir, jahrgang, search|default(''), selected_halbjahre) }}</th>
                                 <th style="width:6rem"></th>
                             </tr>
                         </thead>
                         <tbody>
                         {% for a in anmeldungen %}
+                            {% set full = (a.vorname ~ ' ' ~ a.nachname)|trim %}
                             <tr>
                                 <td>
-                                    <input class="form-check-input listen-row-check" type="checkbox" name="ids[]" value="{{ a.id }}" aria-label="{{ a.name }} auswählen">
+                                    <input class="form-check-input listen-row-check" type="checkbox" name="ids[]" value="{{ a.id }}" aria-label="{{ full }} auswählen">
                                 </td>
-                                <td>{{ a.name }}</td>
+                                <td>{{ a.nachname }}</td>
+                                <td>{{ a.vorname }}</td>
                                 <td>{{ a.tutorium }}</td>
                                 <td>{{ a.email }}</td>
-                                <td>{{ a.hj1_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj1_alt_name }}</small></td>
-                                <td>{{ a.hj2_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj2_alt_name }}</small></td>
-                                <td>{{ a.hj3_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj3_alt_name }}</small></td>
-                                <td>{{ a.hj4_kurs_name }}<br><small class="text-muted">Alt: {{ a.hj4_alt_name }}</small></td>
+                                {% for i in 1..4 %}
+                                    {% set kurs = attribute(a, 'hj' ~ i ~ '_kurs_name') %}
+                                    {% set alt = attribute(a, 'hj' ~ i ~ '_alt_name') %}
+                                    {% set useAlt = attribute(a, 'hj' ~ i ~ '_verwendet_alt')|default(0) == 1 %}
+                                    <td>
+                                        {% if useAlt %}
+                                            <strong>{{ alt }}</strong>
+                                            <span class="badge text-bg-warning">Alt</span>
+                                            <div class="small text-muted">1. Wahl: {{ kurs }}</div>
+                                        {% else %}
+                                            <strong>{{ kurs }}</strong>
+                                            <div class="small text-muted">Alt: {{ alt }}</div>
+                                        {% endif %}
+                                        <form method="post" action="/administrator/listen/anmeldungen/{{ a.id }}/zuordnung" class="mt-1">
+                                            {{ csrf.field()|raw }}
+                                            <input type="hidden" name="jahrgang" value="{{ jahrgang }}">
+                                            <input type="hidden" name="search" value="{{ search|default('') }}">
+                                            <input type="hidden" name="tab" value="alle">
+                                            <input type="hidden" name="halbjahr_id" value="{{ i }}">
+                                            {% for hid in selected_halbjahre %}
+                                                <input type="hidden" name="hj[]" value="{{ hid }}">
+                                            {% endfor %}
+                                            {% if useAlt %}
+                                                <input type="hidden" name="verwendet_alt" value="0">
+                                                <button type="submit" class="btn btn-link btn-sm p-0">→ 1. Wahl</button>
+                                            {% else %}
+                                                <input type="hidden" name="verwendet_alt" value="1">
+                                                <button type="submit" class="btn btn-link btn-sm p-0">→ Alternative</button>
+                                            {% endif %}
+                                        </form>
+                                    </td>
+                                {% endfor %}
                                 <td>{{ a.created_at|date('d.m.Y H:i') }}</td>
                                 <td class="text-nowrap">
                                     <button type="submit" class="btn btn-sm btn-outline-danger"
-                                            formaction="/administrator/listen/anmeldungen/{{ a.id }}/delete"
+                                            formaction="/administrator/listen/anmeldungen/{{ a.id }}/delete?jahrgang={{ jahrgang|url_encode }}&amp;tab=alle&amp;sort={{ sort|url_encode }}&amp;dir={{ dir|url_encode }}{% if search %}&amp;q={{ search|url_encode }}{% endif %}{% for hid in selected_halbjahre %}&amp;hj[]={{ hid }}{% endfor %}"
                                             formmethod="post"
-                                            onclick="return confirm('Anmeldung von „{{ a.name }}“ wirklich löschen?');">
+                                            onclick="return confirm('Anmeldung von „{{ full }}“ wirklich löschen?');">
                                         Löschen
                                     </button>
                                 </td>
@@ -83,54 +222,29 @@
             </form>
         {% endif %}
     </div>
-
-    <div class="tab-pane fade" id="pane-kurse" role="tabpanel">
-        {% if nach_kurs is empty %}
-            <p class="text-muted">Noch keine Kursteilnehmer.</p>
-        {% else %}
-            {% set currentHj = '' %}
-            {% for block in nach_kurs %}
-                {% if block.halbjahr_name != currentHj %}
-                    {% set currentHj = block.halbjahr_name %}
-                    <h2 class="h5 mt-3 mb-2">{{ block.halbjahr_name }}</h2>
-                {% endif %}
-                <div class="card app-card mb-3">
-                    <div class="card-body py-3">
-                        <h3 class="h6 mb-2">
-                            {{ block.kurs_name }}
-                            <span class="text-muted fw-normal">({{ block.teilnehmer|length }} Teilnehmer)</span>
-                        </h3>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Tutorium</th>
-                                        <th>E-Mail</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                {% for t in block.teilnehmer %}
-                                    <tr>
-                                        <td>{{ t.name }}</td>
-                                        <td>{{ t.tutorium }}</td>
-                                        <td>{{ t.email }}</td>
-                                    </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
-        {% endif %}
-    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function () {
+    var selectAll = document.getElementById('hj-select-all');
+    function hjChecks() {
+        return Array.prototype.slice.call(document.querySelectorAll('input[name="hj[]"]'));
+    }
+    if (selectAll) {
+        selectAll.addEventListener('click', function () {
+            hjChecks().forEach(function (c) { c.checked = true; });
+        });
+    }
+    var tabInput = document.getElementById('listen-tab');
+    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(function (btn) {
+        btn.addEventListener('shown.bs.tab', function () {
+            var target = (btn.getAttribute('data-bs-target') || '').replace('#pane-', '');
+            if (tabInput && target) tabInput.value = target;
+        });
+    });
+
     var form = document.getElementById('listen-delete-form');
     if (!form) return;
     var all = document.getElementById('listen-select-all');

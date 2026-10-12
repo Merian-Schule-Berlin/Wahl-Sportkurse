@@ -69,6 +69,7 @@ final class InstallerService
             'kursbeschreibungen_file' => '',
             'kursbeschreibungen_name' => '',
             'kursbeschreibungen_text' => 'Hier findest du eine Übersicht über die [Kursbeschreibungen].',
+            'aktueller_jahrgang' => AnmeldungService::defaultSchoolYear(),
             'registration_start' => '',
             'registration_end' => '',
             'capacity_display' => SettingsService::CAPACITY_FREE_NUMBERS,

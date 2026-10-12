@@ -103,7 +103,7 @@
                                 Darstellung
                             </a>
                             <a class="admin-nav-sublink{% if on_settings and settings_tab == 'zeitraum' %} is-active{% endif %}" href="/administrator/einstellungen?tab=zeitraum">
-                                Zeitraum
+                                Jahrgänge &amp; Zeitraum
                             </a>
                             <a class="admin-nav-sublink{% if on_settings and settings_tab == 'email' %} is-active{% endif %}" href="/administrator/einstellungen?tab=email">
                                 E-Mail
@@ -114,7 +114,7 @@
                             <a class="admin-nav-sublink{% if on_settings and settings_tab == 'benutzer' %} is-active{% endif %}" href="/administrator/einstellungen?tab=benutzer">
                                 Benutzer
                             </a>
-                            {% set on_system = settings_tab in ['system', 'indexierung', 'bot-schutz', 'daten'] %}
+                            {% set on_system = settings_tab in ['system', 'indexierung', 'bot-schutz', 'update', 'daten'] %}
                             <details class="admin-nav-group admin-nav-group-nested" {% if on_settings and on_system %}open{% endif %}>
                                 <summary class="admin-nav-sublink admin-nav-subsummary{% if on_settings and on_system %} is-active{% endif %}">
                                     <span>System</span>
@@ -129,6 +129,9 @@
                                     </a>
                                     <a class="admin-nav-sublink{% if on_settings and settings_tab == 'bot-schutz' %} is-active{% endif %}" href="/administrator/einstellungen?tab=bot-schutz">
                                         Bot-Schutz
+                                    </a>
+                                    <a class="admin-nav-sublink{% if on_settings and settings_tab == 'update' %} is-active{% endif %}" href="/administrator/einstellungen?tab=update">
+                                        Update
                                     </a>
                                     <a class="admin-nav-sublink admin-nav-sublink-danger{% if on_settings and settings_tab == 'daten' %} is-active{% endif %}" href="/administrator/einstellungen?tab=daten">
                                         Löschen

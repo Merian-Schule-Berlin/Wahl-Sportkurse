@@ -3,17 +3,29 @@
 {% block content %}
 {% set window = registration_window %}
 
+{% if update_notice %}
+    <div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <strong>Update verfügbar:</strong>
+            Version <code>{{ update_notice.current }}</code> → <code>{{ update_notice.remote }}</code>
+        </div>
+        <a class="btn btn-sm btn-warning" href="/administrator/einstellungen?tab=update">Zum Update</a>
+    </div>
+{% endif %}
 {% if flash %}<div class="alert alert-info mb-3">{{ flash }}</div>{% endif %}
 
 <div class="dashboard-grid">
     <section class="dash-widget dash-widget-window is-{{ window.state }}">
         <header class="dash-widget-header">
             <h2 class="dash-widget-title">Anmeldefenster</h2>
-            <a class="dash-widget-action" href="/administrator/einstellungen?tab=zeitraum" title="Zeitraum bearbeiten">
+            <a class="dash-widget-action" href="/administrator/einstellungen?tab=zeitraum" title="Jahrgänge &amp; Zeitraum">
                 <i class="bi bi-gear" aria-hidden="true"></i>
             </a>
         </header>
         <div class="dash-widget-body">
+            {% if window.jahrgang %}
+                <p class="small text-muted mb-2">Jahrgang <code>{{ window.jahrgang }}</code></p>
+            {% endif %}
             <div class="dash-status-badge">
                 <span class="dash-status-dot" aria-hidden="true"></span>
                 <span class="dash-status-label">{{ window.label }}</span>

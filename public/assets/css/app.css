@@ -2554,6 +2554,19 @@ form.is-autosaving {
     color: #842029;
 }
 
+#register-submit.btn-secondary:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+#register-submit.btn-primary:not(:disabled) {
+    box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--brand) 28%, transparent);
+}
+
+.kurs-teilnehmer-title {
+    font-size: 1.2rem;
+    font-weight: 650;
+}
+
 /* Wahl-Sportkurse: Ankreuz-Matrix */
 .choice-matrix .choice-col {
     width: 4.5rem;

@@ -9,6 +9,23 @@ use RuntimeException;
 
 final class AnmeldungService
 {
+    public const SORT_NAME = 'nachname';
+    public const SORT_VORNAME = 'vorname';
+    public const SORT_NACHNAME = 'nachname';
+    public const SORT_TUTORIUM = 'tutorium';
+    public const SORT_EMAIL = 'email';
+    public const SORT_HJ1 = 'hj1';
+    public const SORT_HJ2 = 'hj2';
+    public const SORT_HJ3 = 'hj3';
+    public const SORT_HJ4 = 'hj4';
+    public const SORT_DATE = 'created_at';
+
+    /** @param array<string, mixed> $row */
+    public static function fullName(array $row): string
+    {
+        return trim((string) ($row['vorname'] ?? '') . ' ' . (string) ($row['nachname'] ?? ''));
+    }
+
     /**
      * @param array<string, mixed> $appSettings
      */
@@ -17,13 +34,95 @@ final class AnmeldungService
         private readonly SettingsService $settings,
         private readonly MailService $mail,
         private readonly HtmlContentService $html,
-        private readonly array $appSettings
+        private readonly array $appSettings,
+        private readonly JahrgangService $jahrgaenge
     ) {
+    }
+
+    /** Schuljahr z. B. 2025/26 (ab August neues Jahr). */
+    public static function defaultSchoolYear(?\DateTimeInterface $now = null): string
+    {
+        $now = $now ?? new \DateTimeImmutable('now');
+        $year = (int) $now->format('Y');
+        $month = (int) $now->format('n');
+        if ($month >= 8) {
+            return self::formatSchoolYear($year, $year + 1) ?? ($year . '/' . substr((string) ($year + 1), -2));
+        }
+        return self::formatSchoolYear($year - 1, $year) ?? (($year - 1) . '/' . substr((string) $year, -2));
+    }
+
+    /**
+     * Zwei Kalenderjahre → Anzeigeformat JJJJ/JJ (z. B. 2027 + 2028 → 2027/28).
+     */
+    public static function formatSchoolYear(int $von, int $bis): ?string
+    {
+        if ($von < 2000 || $von > 2100 || $bis < 2000 || $bis > 2100) {
+            return null;
+        }
+        if ($bis !== $von + 1) {
+            return null;
+        }
+        return $von . '/' . substr((string) $bis, -2);
+    }
+
+    /** @return array{0:int,1:int} Start- und Endjahr (vierstellig) */
+    public static function splitSchoolYear(string $jahrgang): array
+    {
+        if (preg_match('/^(\d{4})\/(\d{2})$/', trim($jahrgang), $m) === 1) {
+            $von = (int) $m[1];
+            $short = (int) $m[2];
+            $bis = intdiv($von, 100) * 100 + $short;
+            if ($bis <= $von) {
+                $bis += 100;
+            }
+            return [$von, $bis];
+        }
+        $fallback = self::defaultSchoolYear();
+        if (preg_match('/^(\d{4})\/(\d{2})$/', $fallback, $m) === 1) {
+            $von = (int) $m[1];
+            return [$von, $von + 1];
+        }
+        $y = (int) (new \DateTimeImmutable('now'))->format('Y');
+        return [$y, $y + 1];
+    }
+
+    public function resolveJahrgang(): string
+    {
+        return $this->jahrgaenge->resolveName();
+    }
+
+    /** @return list<string> */
+    public function listJahrgaenge(): array
+    {
+        $list = $this->jahrgaenge->allNames();
+        $fromAnmeldungen = $this->pdo->query(
+            "SELECT DISTINCT jahrgang FROM anmeldungen
+             WHERE jahrgang <> ''
+             ORDER BY jahrgang DESC"
+        )->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($fromAnmeldungen as $jg) {
+            $name = (string) $jg;
+            if ($name !== '' && !in_array($name, $list, true)) {
+                $list[] = $name;
+            }
+        }
+        rsort($list);
+        $current = $this->resolveJahrgang();
+        if ($current !== '' && !in_array($current, $list, true)) {
+            array_unshift($list, $current);
+        }
+        return array_values($list);
+    }
+
+    public function isRegistrationOpen(): bool
+    {
+        return $this->jahrgaenge->isRegistrationOpen();
     }
 
     /**
      * @param array{
-     *     name:string,
+     *     vorname:string,
+     *     nachname:string,
      *     tutorium:string,
      *     email:string,
      *     hj1_kurs_id:int,
@@ -39,16 +138,17 @@ final class AnmeldungService
      */
     public function register(array $data, bool $allowWhenClosed = false): array
     {
-        if (!$allowWhenClosed && !$this->settings->isRegistrationOpen()) {
+        if (!$allowWhenClosed && !$this->isRegistrationOpen()) {
             throw new RuntimeException('Die Anmeldung ist derzeit geschlossen.');
         }
 
-        $name = trim($data['name']);
+        $vorname = trim($data['vorname']);
+        $nachname = trim($data['nachname']);
         $tutorium = trim($data['tutorium']);
         $email = trim($data['email']);
 
-        if ($name === '' || $tutorium === '' || $email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new RuntimeException('Bitte Name, Tutorium und gültige E-Mail-Adresse angeben.');
+        if ($vorname === '' || $nachname === '' || $tutorium === '' || $email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new RuntimeException('Bitte Vorname, Nachname, Tutorium und gültige E-Mail-Adresse angeben.');
         }
 
         $choices = [];
@@ -87,23 +187,26 @@ final class AnmeldungService
             $this->assertWahlregeln($choices, $locked);
 
             $token = bin2hex(random_bytes(32));
+            $jahrgang = $this->resolveJahrgang();
             $insert = $this->pdo->prepare(
                 'INSERT INTO anmeldungen (
-                    name, tutorium, email,
+                    vorname, nachname, tutorium, email, jahrgang,
                     hj1_kurs_id, hj1_alt_id, hj2_kurs_id, hj2_alt_id,
                     hj3_kurs_id, hj3_alt_id, hj4_kurs_id, hj4_alt_id,
                     token, status
                  ) VALUES (
-                    :name, :tutorium, :email,
+                    :vorname, :nachname, :tutorium, :email, :jahrgang,
                     :hj1k, :hj1a, :hj2k, :hj2a,
                     :hj3k, :hj3a, :hj4k, :hj4a,
                     :token, \'aktiv\'
                  )'
             );
             $insert->execute([
-                'name' => $name,
+                'vorname' => $vorname,
+                'nachname' => $nachname,
                 'tutorium' => $tutorium,
                 'email' => $email,
+                'jahrgang' => $jahrgang,
                 'hj1k' => $choices[1]['kurs'],
                 'hj1a' => $choices[1]['alt'],
                 'hj2k' => $choices[2]['kurs'],
@@ -211,49 +314,150 @@ final class AnmeldungService
     }
 
     /**
-     * Teilnehmer je Kurs (1. Wahl), gruppiert nach Halbjahr.
+     * Teilnehmer je zugewiesenem Kurs (1. Wahl oder Alternative), gruppiert nach Halbjahr.
      *
-     * @return list<array{halbjahr_id:int,halbjahr_name:string,kurs_id:int,kurs_name:string,teilnehmer:list<array{name:string,tutorium:string,email:string}>}>
+     * @param list<int>|null $halbjahre
+     * @return list<array{
+     *   halbjahr_id:int,
+     *   halbjahr_name:string,
+     *   kurs_id:int,
+     *   kurs_name:string,
+     *   teilnehmer:list<array{
+     *     id:int,
+     *     vorname:string,
+     *     nachname:string,
+     *     name:string,
+     *     tutorium:string,
+     *     email:string,
+     *     verwendet_alt:bool,
+     *     wahl_kurs_id:int,
+     *     wahl_kurs_name:string,
+     *     alt_kurs_id:int,
+     *     alt_kurs_name:string
+     *   }>
+     * }>
      */
-    public function teilnehmerNachKurs(): array
-    {
+    public function teilnehmerNachKurs(
+        ?string $jahrgang = null,
+        string $search = '',
+        ?array $halbjahre = null
+    ): array {
+        $jahrgang = $jahrgang ?? $this->resolveJahrgang();
+        $hjIds = $this->normalizeHalbjahre($halbjahre);
+
         $hjNames = [];
         foreach ($this->pdo->query('SELECT id, name FROM halbjahre ORDER BY id ASC')->fetchAll() as $hj) {
             $hjNames[(int) $hj['id']] = (string) $hj['name'];
         }
 
+        $kursMeta = [];
+        foreach ($this->pdo->query(
+            'SELECT id, name, sortierung FROM sportkurse ORDER BY sortierung ASC, name ASC'
+        )->fetchAll() as $k) {
+            $kursMeta[(int) $k['id']] = [
+                'name' => (string) $k['name'],
+                'sortierung' => (int) $k['sortierung'],
+            ];
+        }
+
+        [$searchSql, $searchParams] = $this->searchClause($search);
+        $stmt = $this->pdo->prepare(
+            "SELECT a.*
+             FROM anmeldungen a
+             WHERE a.status = 'aktiv' AND a.jahrgang = :j{$searchSql}
+             ORDER BY a.nachname ASC, a.vorname ASC"
+        );
+        $stmt->execute(array_merge(['j' => $jahrgang], $searchParams));
+        $anmeldungen = $stmt->fetchAll();
+
         $out = [];
-        for ($hj = 1; $hj <= HalbjahrService::SLOT_COUNT; $hj++) {
-            $col = 'hj' . $hj . '_kurs_id';
-            $sql = "SELECT k.id AS kurs_id, k.name AS kurs_name, a.name, a.tutorium, a.email
-                    FROM anmeldungen a
-                    INNER JOIN sportkurse k ON k.id = a.{$col}
-                    WHERE a.status = 'aktiv'
-                    ORDER BY k.sortierung ASC, k.name ASC, a.name ASC";
-            $rows = $this->pdo->query($sql)->fetchAll();
+        foreach ($hjIds as $hj) {
             $byKurs = [];
-            foreach ($rows as $row) {
-                $kid = (int) $row['kurs_id'];
-                if (!isset($byKurs[$kid])) {
-                    $byKurs[$kid] = [
+            foreach ($anmeldungen as $row) {
+                $wahlId = (int) $row['hj' . $hj . '_kurs_id'];
+                $altId = (int) $row['hj' . $hj . '_alt_id'];
+                $useAlt = (int) ($row['hj' . $hj . '_verwendet_alt'] ?? 0) === 1;
+                $kursId = $useAlt ? $altId : $wahlId;
+                if ($kursId < 1) {
+                    continue;
+                }
+                if (!isset($byKurs[$kursId])) {
+                    $byKurs[$kursId] = [
                         'halbjahr_id' => $hj,
                         'halbjahr_name' => $hjNames[$hj] ?? ('Halbjahr ' . $hj),
-                        'kurs_id' => $kid,
-                        'kurs_name' => (string) $row['kurs_name'],
+                        'kurs_id' => $kursId,
+                        'kurs_name' => $kursMeta[$kursId]['name'] ?? ('Kurs #' . $kursId),
+                        'kurs_sort' => $kursMeta[$kursId]['sortierung'] ?? 9999,
                         'teilnehmer' => [],
                     ];
                 }
-                $byKurs[$kid]['teilnehmer'][] = [
-                    'name' => (string) $row['name'],
+                $byKurs[$kursId]['teilnehmer'][] = [
+                    'id' => (int) $row['id'],
+                    'vorname' => (string) $row['vorname'],
+                    'nachname' => (string) $row['nachname'],
+                    'name' => self::fullName($row),
                     'tutorium' => (string) $row['tutorium'],
                     'email' => (string) $row['email'],
+                    'verwendet_alt' => $useAlt,
+                    'wahl_kurs_id' => $wahlId,
+                    'wahl_kurs_name' => $kursMeta[$wahlId]['name'] ?? '',
+                    'alt_kurs_id' => $altId,
+                    'alt_kurs_name' => $kursMeta[$altId]['name'] ?? '',
                 ];
             }
+            uasort(
+                $byKurs,
+                static function (array $a, array $b): int {
+                    $cmp = $a['kurs_sort'] <=> $b['kurs_sort'];
+                    if ($cmp !== 0) {
+                        return $cmp;
+                    }
+                    return strcasecmp($a['kurs_name'], $b['kurs_name']);
+                }
+            );
             foreach ($byKurs as $block) {
+                unset($block['kurs_sort']);
                 $out[] = $block;
             }
         }
         return $out;
+    }
+
+    /**
+     * @param list<int|string>|null $halbjahre
+     * @return list<int>
+     */
+    public function normalizeHalbjahre(?array $halbjahre): array
+    {
+        if ($halbjahre === null || $halbjahre === []) {
+            return range(1, HalbjahrService::SLOT_COUNT);
+        }
+        $ids = [];
+        foreach ($halbjahre as $id) {
+            $n = (int) $id;
+            if ($n >= 1 && $n <= HalbjahrService::SLOT_COUNT) {
+                $ids[$n] = $n;
+            }
+        }
+        $list = array_values($ids);
+        sort($list);
+        return $list !== [] ? $list : range(1, HalbjahrService::SLOT_COUNT);
+    }
+
+    public function setVerwendetAlt(int $anmeldungId, int $halbjahrId, bool $verwendetAlt): bool
+    {
+        if ($anmeldungId < 1 || $halbjahrId < 1 || $halbjahrId > HalbjahrService::SLOT_COUNT) {
+            return false;
+        }
+        $col = 'hj' . $halbjahrId . '_verwendet_alt';
+        $stmt = $this->pdo->prepare(
+            "UPDATE anmeldungen SET `{$col}` = :v WHERE id = :id AND status = 'aktiv'"
+        );
+        $stmt->execute([
+            'v' => $verwendetAlt ? 1 : 0,
+            'id' => $anmeldungId,
+        ]);
+        return $stmt->rowCount() > 0;
     }
 
     /** @return array<string, mixed>|null */
@@ -285,10 +489,19 @@ final class AnmeldungService
         return $row ?: null;
     }
 
-    /** @return list<array<string, mixed>> */
-    public function allActive(): array
-    {
-        return $this->pdo->query(
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function allActive(
+        ?string $jahrgang = null,
+        string $sort = self::SORT_NACHNAME,
+        string $dir = 'asc',
+        string $search = ''
+    ): array {
+        $jahrgang = $jahrgang ?? $this->resolveJahrgang();
+        $order = $this->orderByClause($sort, $dir);
+        [$searchSql, $searchParams] = $this->searchClause($search);
+        $stmt = $this->pdo->prepare(
             "SELECT a.*,
                     k1.name AS hj1_kurs_name, a1.name AS hj1_alt_name,
                     k2.name AS hj2_kurs_name, a2.name AS hj2_alt_name,
@@ -303,9 +516,54 @@ final class AnmeldungService
              INNER JOIN sportkurse a3 ON a3.id = a.hj3_alt_id
              INNER JOIN sportkurse k4 ON k4.id = a.hj4_kurs_id
              INNER JOIN sportkurse a4 ON a4.id = a.hj4_alt_id
-             WHERE a.status = 'aktiv'
-             ORDER BY a.created_at DESC, a.name ASC"
-        )->fetchAll();
+             WHERE a.status = 'aktiv' AND a.jahrgang = :j{$searchSql}
+             ORDER BY {$order}"
+        );
+        $stmt->execute(array_merge(['j' => $jahrgang], $searchParams));
+        return $stmt->fetchAll();
+    }
+
+    private function orderByClause(string $sort, string $dir): string
+    {
+        $dirSql = strtolower($dir) === 'desc' ? 'DESC' : 'ASC';
+        return match ($sort) {
+            self::SORT_VORNAME => "a.vorname {$dirSql}, a.nachname ASC",
+            self::SORT_TUTORIUM => "a.tutorium {$dirSql}, a.nachname ASC, a.vorname ASC",
+            self::SORT_EMAIL => "a.email {$dirSql}, a.nachname ASC, a.vorname ASC",
+            self::SORT_HJ1 => "k1.name {$dirSql}, a.nachname ASC, a.vorname ASC",
+            self::SORT_HJ2 => "k2.name {$dirSql}, a.nachname ASC, a.vorname ASC",
+            self::SORT_HJ3 => "k3.name {$dirSql}, a.nachname ASC, a.vorname ASC",
+            self::SORT_HJ4 => "k4.name {$dirSql}, a.nachname ASC, a.vorname ASC",
+            self::SORT_DATE => "a.created_at {$dirSql}, a.nachname ASC, a.vorname ASC",
+            default => "a.nachname {$dirSql}, a.vorname ASC, a.created_at DESC",
+        };
+    }
+
+    /** @return array{0:string,1:array<string,string>} */
+    private function searchClause(string $search): array
+    {
+        $search = trim($search);
+        if ($search === '') {
+            return ['', []];
+        }
+        return [
+            ' AND (
+                a.vorname LIKE :q
+                OR a.nachname LIKE :q2
+                OR a.email LIKE :q3
+                OR a.tutorium LIKE :q4
+                OR CONCAT(a.vorname, \' \', a.nachname) LIKE :q5
+                OR CONCAT(a.nachname, \' \', a.vorname) LIKE :q6
+            )',
+            [
+                'q' => '%' . $search . '%',
+                'q2' => '%' . $search . '%',
+                'q3' => '%' . $search . '%',
+                'q4' => '%' . $search . '%',
+                'q5' => '%' . $search . '%',
+                'q6' => '%' . $search . '%',
+            ],
+        ];
     }
 
     public function cancel(string $token): void
@@ -327,11 +585,15 @@ final class AnmeldungService
         }
     }
 
-    public function countActive(): int
+    public function countActive(?string $jahrgang = null, string $search = ''): int
     {
-        return (int) $this->pdo->query(
-            "SELECT COUNT(*) FROM anmeldungen WHERE status = 'aktiv'"
-        )->fetchColumn();
+        $jahrgang = $jahrgang ?? $this->resolveJahrgang();
+        [$searchSql, $searchParams] = $this->searchClause($search);
+        $stmt = $this->pdo->prepare(
+            "SELECT COUNT(*) FROM anmeldungen a WHERE a.status = 'aktiv' AND a.jahrgang = :j{$searchSql}"
+        );
+        $stmt->execute(array_merge(['j' => $jahrgang], $searchParams));
+        return (int) $stmt->fetchColumn();
     }
 
     public function countAll(): int
@@ -421,8 +683,11 @@ final class AnmeldungService
         $choicesHtml = $this->choicesSummaryHtml($anmeldung);
         $choicesText = $this->choicesSummaryText($anmeldung);
 
+        $fullName = self::fullName($anmeldung);
         $rawPlaceholders = [
-            '{name}' => (string) $anmeldung['name'],
+            '{name}' => $fullName,
+            '{vorname}' => (string) ($anmeldung['vorname'] ?? ''),
+            '{nachname}' => (string) ($anmeldung['nachname'] ?? ''),
             '{tutorium}' => (string) $anmeldung['tutorium'],
             '{email}' => (string) $anmeldung['email'],
             '{choices}' => $choicesText,
@@ -483,10 +748,10 @@ final class AnmeldungService
     public static function defaultMailBody(): string
     {
         return '<p>{logo}</p>'
-            . '<p>Hallo {name},</p>'
+            . '<p>Hallo {vorname},</p>'
             . '<p>vielen Dank für Ihre Sportkurs-Wahl.</p>'
             . '<p><strong>Ihre Angaben:</strong><br>'
-            . 'Name: {name}<br>'
+            . 'Name: {vorname} {nachname}<br>'
             . 'Tutorium: {tutorium}<br>'
             . 'E-Mail: {email}</p>'
             . '<p><strong>Ihre Wahl:</strong></p>'
@@ -500,7 +765,7 @@ final class AnmeldungService
     public static function defaultCancelMailBody(): string
     {
         return '<p>{logo}</p>'
-            . '<p>Hallo {name},</p>'
+            . '<p>Hallo {vorname},</p>'
             . '<p>Ihre Sportkurs-Wahl wurde storniert.</p>'
             . '<p><strong>Stornierte Wahl:</strong></p>'
             . '{choices}'

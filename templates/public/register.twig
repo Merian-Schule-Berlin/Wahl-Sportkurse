@@ -116,15 +116,19 @@
                 </div>
 
                 <div class="row g-3 mb-3">
-                    <div class="col-md-4">
-                        <label class="form-label" for="name">Name</label>
-                        <input class="form-control" type="text" name="name" id="name" required value="{{ old.name|default('') }}" autocomplete="name">
+                    <div class="col-md-3">
+                        <label class="form-label" for="vorname">Vorname</label>
+                        <input class="form-control" type="text" name="vorname" id="vorname" required value="{{ old.vorname|default('') }}" autocomplete="given-name">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label class="form-label" for="nachname">Nachname</label>
+                        <input class="form-control" type="text" name="nachname" id="nachname" required value="{{ old.nachname|default('') }}" autocomplete="family-name">
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label" for="tutorium">Tutorium</label>
                         <input class="form-control" type="text" name="tutorium" id="tutorium" required value="{{ old.tutorium|default('') }}" autocomplete="organization">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label" for="email">E-Mail</label>
                         <input class="form-control" type="email" name="email" id="email" required value="{{ old.email|default('') }}" autocomplete="email">
                     </div>
@@ -132,7 +136,7 @@
 
                 {% include 'partials/bot_protection.twig' %}
 
-                <button type="submit" class="btn btn-primary" id="register-submit" disabled>Anmeldung absenden</button>
+                <button type="submit" class="btn btn-secondary" id="register-submit" disabled aria-disabled="true">Anmeldung absenden</button>
                 <a class="btn btn-outline-primary ms-2" href="/">Abbrechen</a>
             </form>
         {% endif %}
@@ -254,31 +258,58 @@
             setRegel('regel-doppelt', 'ok', 'In Ordnung');
         }
 
-        var allOk = okHj && feldCount >= 2 && tooOften.length === 0 && primary.length === hjIds.length;
+        var rulesOk = okHj && feldCount >= 2 && tooOften.length === 0 && primary.length === hjIds.length;
+        var formOk = personalDataOk();
+        var allOk = rulesOk && formOk;
         var gesamt = document.getElementById('wahl-regeln-gesamt');
         var box = document.getElementById('wahl-regeln');
         if (gesamt) {
-            gesamt.textContent = allOk ? '– erfüllt' : '– noch nicht erfüllt';
+            gesamt.textContent = rulesOk ? '– erfüllt' : '– noch nicht erfüllt';
         }
         if (box) {
-            box.setAttribute('data-complete', allOk ? '1' : '0');
+            box.setAttribute('data-complete', rulesOk ? '1' : '0');
         }
         if (submitBtn) {
             submitBtn.disabled = !allOk;
+            submitBtn.setAttribute('aria-disabled', allOk ? 'false' : 'true');
+            submitBtn.classList.toggle('btn-primary', allOk);
+            submitBtn.classList.toggle('btn-secondary', !allOk);
+            submitBtn.title = allOk
+                ? ''
+                : (!rulesOk
+                    ? 'Bitte zuerst alle Wahlbedingungen erfüllen und das Formular ausfüllen.'
+                    : 'Bitte Vorname, Nachname, Tutorium und gültige E-Mail ausfüllen.');
         }
         return allOk;
     }
 
-    form.addEventListener('change', function (e) {
-        if (e.target && e.target.classList && e.target.classList.contains('choice-radio')) {
-            evaluate();
+    function personalDataOk() {
+        var vorname = (document.getElementById('vorname') || {}).value || '';
+        var nachname = (document.getElementById('nachname') || {}).value || '';
+        var tutorium = (document.getElementById('tutorium') || {}).value || '';
+        var emailEl = document.getElementById('email');
+        var email = (emailEl || {}).value || '';
+        if (vorname.trim() === '' || nachname.trim() === '' || tutorium.trim() === '' || email.trim() === '') {
+            return false;
         }
-    });
+        if (emailEl && typeof emailEl.checkValidity === 'function' && !emailEl.checkValidity()) {
+            return false;
+        }
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    }
+
+    form.addEventListener('change', evaluate);
+    form.addEventListener('input', evaluate);
     form.addEventListener('submit', function (e) {
         if (!evaluate()) {
             e.preventDefault();
             var box = document.getElementById('wahl-regeln');
-            if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            if (box && box.getAttribute('data-complete') !== '1') {
+                box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                var vorname = document.getElementById('vorname');
+                if (vorname) vorname.focus();
+            }
         }
     });
     evaluate();

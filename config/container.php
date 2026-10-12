@@ -18,10 +18,12 @@ use App\Services\ExportService;
 use App\Services\HalbjahrService;
 use App\Services\HtmlContentService;
 use App\Services\InstallerService;
+use App\Services\JahrgangService;
 use App\Services\LoginThrottleService;
 use App\Services\MailService;
 use App\Services\SchemaMigrator;
 use App\Services\SettingsService;
+use App\Services\UpdateService;
 use App\Services\UploadService;
 use Psr\Container\ContainerInterface;
 use Slim\Views\Twig;
@@ -159,19 +161,28 @@ return [
     HtmlContentService::class => static fn () => new HtmlContentService(),
     InstallerService::class => static fn (ContainerInterface $c) => new InstallerService($c->get('root_path')),
     MailService::class => static fn (ContainerInterface $c) => new MailService($c->get('settings')),
-    SettingsService::class => static fn (ContainerInterface $c) => new SettingsService($c->get(PDO::class)),
+    JahrgangService::class => static fn (ContainerInterface $c) => new JahrgangService($c->get(PDO::class)),
+    SettingsService::class => static fn (ContainerInterface $c) => new SettingsService(
+        $c->get(PDO::class),
+        $c->get(JahrgangService::class)
+    ),
     BotProtectionService::class => static fn (ContainerInterface $c) => new BotProtectionService(
         $c->get(SettingsService::class)
     ),
     AuthService::class => static fn (ContainerInterface $c) => new AuthService($c->get(PDO::class)),
     HalbjahrService::class => static fn (ContainerInterface $c) => new HalbjahrService($c->get(PDO::class)),
+    UpdateService::class => static fn (ContainerInterface $c) => new UpdateService(
+        $c->get('root_path'),
+        $c->get(SettingsService::class)
+    ),
     AnmeldungService::class => static function (ContainerInterface $c) {
         return new AnmeldungService(
             $c->get(PDO::class),
             $c->get(SettingsService::class),
             $c->get(MailService::class),
             $c->get(HtmlContentService::class),
-            $c->get('settings')
+            $c->get('settings'),
+            $c->get(JahrgangService::class)
         );
     },
     ExportService::class => static fn (ContainerInterface $c) => new ExportService(
@@ -217,7 +228,8 @@ return [
             $c->get(HalbjahrService::class),
             $c->get(AnmeldungService::class),
             $c->get(AuthService::class),
-            $c->get(SettingsService::class)
+            $c->get(SettingsService::class),
+            $c->get(UpdateService::class)
         );
     },
     HalbjahrController::class => static function (ContainerInterface $c) {
@@ -237,7 +249,9 @@ return [
             $c->get(CsrfService::class),
             $c->get(AuthService::class),
             $c->get(AnmeldungService::class),
-            $c->get(HtmlContentService::class)
+            $c->get(HtmlContentService::class),
+            $c->get(JahrgangService::class),
+            $c->get(UpdateService::class)
         );
     },
     ExportController::class => static function (ContainerInterface $c) {
@@ -245,7 +259,8 @@ return [
             $c->get(Twig::class),
             $c->get(AnmeldungService::class),
             $c->get(ExportService::class),
-            $c->get(SettingsService::class)
+            $c->get(SettingsService::class),
+            $c->get(HalbjahrService::class)
         );
     },
     AdminAuthMiddleware::class => static function (ContainerInterface $c) {

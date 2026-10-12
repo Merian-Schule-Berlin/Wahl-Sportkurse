@@ -19,8 +19,10 @@ final class SettingsService
     public const BOT_RECAPTCHA = 'recaptcha';
     public const BOT_TURNSTILE = 'turnstile';
 
-    public function __construct(private readonly PDO $pdo)
-    {
+    public function __construct(
+        private readonly PDO $pdo,
+        private readonly ?JahrgangService $jahrgaenge = null
+    ) {
     }
 
     /** @return array<string, string> */
@@ -56,6 +58,10 @@ final class SettingsService
 
     public function isRegistrationOpen(): bool
     {
+        if ($this->jahrgaenge !== null) {
+            return $this->jahrgaenge->isRegistrationOpen();
+        }
+
         $start = $this->get('registration_start');
         $end = $this->get('registration_end');
         $now = time();
@@ -73,6 +79,26 @@ final class SettingsService
             }
         }
         return true;
+    }
+
+    /** @return array{start:string,end:string,name:string} */
+    public function currentRegistrationWindow(): array
+    {
+        if ($this->jahrgaenge !== null) {
+            $jg = $this->jahrgaenge->getAktuell();
+            if ($jg !== null) {
+                return [
+                    'name' => (string) $jg['name'],
+                    'start' => (string) ($jg['registration_start'] ?? ''),
+                    'end' => (string) ($jg['registration_end'] ?? ''),
+                ];
+            }
+        }
+        return [
+            'name' => $this->get('aktueller_jahrgang', AnmeldungService::defaultSchoolYear()),
+            'start' => $this->get('registration_start'),
+            'end' => $this->get('registration_end'),
+        ];
     }
 
     /**

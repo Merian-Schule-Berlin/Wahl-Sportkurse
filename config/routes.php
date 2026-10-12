@@ -58,14 +58,21 @@ return static function (App $app): void {
             $admin->get('/listen/anmeldungen.pdf', [ExportController::class, 'downloadPdf']);
             $admin->post('/listen/anmeldungen/delete', [ExportController::class, 'deleteSelected']);
             $admin->post('/listen/anmeldungen/{id}/delete', [ExportController::class, 'deleteAnmeldung']);
-
+            $admin->post('/listen/anmeldungen/{id}/zuordnung', [ExportController::class, 'setZuordnung']);
             $admin->get('/einstellungen', [SettingsController::class, 'form']);
             $admin->post('/einstellungen', [SettingsController::class, 'save']);
+            $admin->post('/einstellungen/jahrgaenge', [SettingsController::class, 'createJahrgang']);
+            $admin->post('/einstellungen/jahrgaenge/{id}', [SettingsController::class, 'updateJahrgang']);
+            $admin->post('/einstellungen/jahrgaenge/{id}/aktuell', [SettingsController::class, 'setAktuellerJahrgang']);
+            $admin->post('/einstellungen/jahrgaenge/{id}/delete', [SettingsController::class, 'deleteJahrgang']);
             $admin->post('/einstellungen/benutzer', [SettingsController::class, 'createUser']);
             $admin->post('/einstellungen/benutzer/{id}/delete', [SettingsController::class, 'deleteUser']);
             $admin->post('/einstellungen/daten-loeschen', [SettingsController::class, 'wipeData']);
             $admin->post('/einstellungen/indexierung', [SettingsController::class, 'saveIndexing']);
             $admin->post('/einstellungen/bot-schutz', [SettingsController::class, 'saveBotProtection']);
+            $admin->post('/einstellungen/update-quelle', [SettingsController::class, 'saveUpdateSource']);
+            $admin->post('/einstellungen/update-check', [SettingsController::class, 'checkUpdate']);
+            $admin->post('/einstellungen/update', [SettingsController::class, 'runUpdate']);
         })->add(AdminAuthMiddleware::class);
     });
 };

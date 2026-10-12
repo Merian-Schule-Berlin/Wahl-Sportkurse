@@ -17,10 +17,13 @@ final class ExportService
     }
 
     /** @return list<array<string, mixed>> */
-    public function allActiveRows(): array
+    public function allActiveRows(?string $jahrgang = null): array
     {
-        return $this->pdo->query(
-            "SELECT a.name, a.tutorium, a.email, a.created_at,
+        if ($jahrgang === null || $jahrgang === '') {
+            $jahrgang = AnmeldungService::defaultSchoolYear();
+        }
+        $stmt = $this->pdo->prepare(
+            "SELECT a.vorname, a.nachname, a.tutorium, a.email, a.jahrgang, a.created_at,
                     k1.name AS hj1_kurs, a1.name AS hj1_alt,
                     k2.name AS hj2_kurs, a2.name AS hj2_alt,
                     k3.name AS hj3_kurs, a3.name AS hj3_alt,
@@ -34,21 +37,23 @@ final class ExportService
              INNER JOIN sportkurse a3 ON a3.id = a.hj3_alt_id
              INNER JOIN sportkurse k4 ON k4.id = a.hj4_kurs_id
              INNER JOIN sportkurse a4 ON a4.id = a.hj4_alt_id
-             WHERE a.status = 'aktiv'
-             ORDER BY a.name ASC"
-        )->fetchAll();
+             WHERE a.status = 'aktiv' AND a.jahrgang = :j
+             ORDER BY a.nachname ASC, a.vorname ASC"
+        );
+        $stmt->execute(['j' => $jahrgang]);
+        return $stmt->fetchAll();
     }
 
-    public function csvAll(): string
+    public function csvAll(?string $jahrgang = null): string
     {
-        $rows = $this->allActiveRows();
+        $rows = $this->allActiveRows($jahrgang);
         $fh = fopen('php://temp', 'r+');
         if ($fh === false) {
             return '';
         }
         fwrite($fh, "\xEF\xBB\xBF");
         fputcsv($fh, [
-            'Name', 'Tutorium', 'E-Mail',
+            'Nachname', 'Vorname', 'Tutorium', 'E-Mail', 'Jahrgang',
             'HJ1 1. Wahl', 'HJ1 Alternative',
             'HJ2 1. Wahl', 'HJ2 Alternative',
             'HJ3 1. Wahl', 'HJ3 Alternative',
@@ -57,9 +62,11 @@ final class ExportService
         ], ';');
         foreach ($rows as $row) {
             fputcsv($fh, [
-                $row['name'],
+                $row['nachname'],
+                $row['vorname'],
                 $row['tutorium'],
                 $row['email'],
+                $row['jahrgang'],
                 $row['hj1_kurs'],
                 $row['hj1_alt'],
                 $row['hj2_kurs'],
@@ -77,16 +84,21 @@ final class ExportService
         return $csv;
     }
 
-    public function pdfAll(?string $logoFilename = null): string
+    public function pdfAll(?string $logoFilename = null, ?string $jahrgang = null): string
     {
-        $rows = $this->allActiveRows();
+        $rows = $this->allActiveRows($jahrgang);
+        if ($jahrgang === null || $jahrgang === '') {
+            $jahrgang = AnmeldungService::defaultSchoolYear();
+        }
         $datum = htmlspecialchars((new \DateTimeImmutable('now'))->format('d.m.Y'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $jahrgangHtml = htmlspecialchars($jahrgang, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $logoHtml = $this->logoImgHtml($logoFilename);
 
         $bodyRows = '';
         foreach ($rows as $row) {
             $bodyRows .= '<tr>'
-                . '<td>' . htmlspecialchars((string) $row['name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</td>'
+                . '<td>' . htmlspecialchars((string) $row['nachname'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</td>'
+                . '<td>' . htmlspecialchars((string) $row['vorname'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</td>'
                 . '<td>' . htmlspecialchars((string) $row['tutorium'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</td>'
                 . '<td>' . htmlspecialchars((string) $row['email'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</td>'
                 . '<td>' . htmlspecialchars((string) $row['hj1_kurs'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '<br><small>Alt: '
@@ -100,7 +112,7 @@ final class ExportService
                 . '</tr>';
         }
         if ($bodyRows === '') {
-            $bodyRows = '<tr><td colspan="7">Keine aktiven Anmeldungen.</td></tr>';
+            $bodyRows = '<tr><td colspan="8">Keine aktiven Anmeldungen.</td></tr>';
         }
 
         $html = <<<HTML
@@ -121,11 +133,11 @@ final class ExportService
 <body>
     {$logoHtml}
     <h1>Sportkurs-Anmeldungen</h1>
-    <p class="meta">Datum: {$datum}</p>
+    <p class="meta">Jahrgang: {$jahrgangHtml} · Datum: {$datum}</p>
     <table>
         <thead>
             <tr>
-                <th>Name</th><th>Tutorium</th><th>E-Mail</th>
+                <th>Nachname</th><th>Vorname</th><th>Tutorium</th><th>E-Mail</th>
                 <th>HJ1</th><th>HJ2</th><th>HJ3</th><th>HJ4</th>
             </tr>
         </thead>

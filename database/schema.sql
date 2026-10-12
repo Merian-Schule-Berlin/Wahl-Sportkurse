@@ -7,6 +7,16 @@ CREATE TABLE IF NOT EXISTS settings (
     setting_value TEXT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS jahrgaenge (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(16) NOT NULL UNIQUE,
+    registration_start DATETIME NULL,
+    registration_end DATETIME NULL,
+    ist_aktuell TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_jahrgaenge_aktuell (ist_aktuell)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS admins (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(100) NOT NULL UNIQUE,
@@ -43,17 +53,23 @@ CREATE TABLE IF NOT EXISTS kurs_halbjahr (
 
 CREATE TABLE IF NOT EXISTS anmeldungen (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(200) NOT NULL,
+    vorname VARCHAR(100) NOT NULL,
+    nachname VARCHAR(100) NOT NULL,
     tutorium VARCHAR(200) NOT NULL,
     email VARCHAR(255) NOT NULL,
+    jahrgang VARCHAR(16) NOT NULL,
     hj1_kurs_id INT UNSIGNED NOT NULL,
     hj1_alt_id INT UNSIGNED NOT NULL,
+    hj1_verwendet_alt TINYINT(1) NOT NULL DEFAULT 0,
     hj2_kurs_id INT UNSIGNED NOT NULL,
     hj2_alt_id INT UNSIGNED NOT NULL,
+    hj2_verwendet_alt TINYINT(1) NOT NULL DEFAULT 0,
     hj3_kurs_id INT UNSIGNED NOT NULL,
     hj3_alt_id INT UNSIGNED NOT NULL,
+    hj3_verwendet_alt TINYINT(1) NOT NULL DEFAULT 0,
     hj4_kurs_id INT UNSIGNED NOT NULL,
     hj4_alt_id INT UNSIGNED NOT NULL,
+    hj4_verwendet_alt TINYINT(1) NOT NULL DEFAULT 0,
     token CHAR(64) NOT NULL UNIQUE,
     status ENUM('aktiv', 'storniert') NOT NULL DEFAULT 'aktiv',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -67,6 +83,8 @@ CREATE TABLE IF NOT EXISTS anmeldungen (
     CONSTRAINT fk_anmeldungen_hj4_kurs FOREIGN KEY (hj4_kurs_id) REFERENCES sportkurse(id) ON DELETE RESTRICT,
     CONSTRAINT fk_anmeldungen_hj4_alt FOREIGN KEY (hj4_alt_id) REFERENCES sportkurse(id) ON DELETE RESTRICT,
     INDEX idx_anmeldungen_status (status),
+    INDEX idx_anmeldungen_jahrgang (jahrgang, status),
+    INDEX idx_anmeldungen_nachname (nachname, vorname),
     INDEX idx_anmeldungen_hj1 (hj1_kurs_id, status),
     INDEX idx_anmeldungen_hj2 (hj2_kurs_id, status),
     INDEX idx_anmeldungen_hj3 (hj3_kurs_id, status),

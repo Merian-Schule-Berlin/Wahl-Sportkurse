@@ -1,0 +1,68 @@
+{% if blocks is empty %}
+    <p class="text-muted">{{ empty_message|default('Keine Teilnehmer vorhanden.') }}</p>
+{% else %}
+    {% for block in blocks %}
+        {% if loop.first or block.halbjahr_name != blocks[loop.index0 - 1].halbjahr_name %}
+            <h2 class="h4 mt-4 mb-3">{{ block.halbjahr_name }}</h2>
+        {% endif %}
+
+        <div class="mb-4">
+            <h3 class="h5 mb-2 kurs-teilnehmer-title">
+                {{ block.kurs_name }}
+                <span class="text-muted fw-normal fs-6">({{ block.teilnehmer|length }} Teilnehmer)</span>
+            </h3>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Nachname</th>
+                            <th>Vorname</th>
+                            <th>Tutorium</th>
+                            <th>E-Mail</th>
+                            <th>Zuordnung</th>
+                            <th style="width:11rem">Aktion</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for t in block.teilnehmer %}
+                        <tr>
+                            <td>{{ t.nachname }}</td>
+                            <td>{{ t.vorname }}</td>
+                            <td>{{ t.tutorium }}</td>
+                            <td>{{ t.email }}</td>
+                            <td>
+                                {% if t.verwendet_alt %}
+                                    <span class="badge text-bg-warning">Alternative</span>
+                                    <div class="small text-muted mt-1">1. Wahl: {{ t.wahl_kurs_name }}</div>
+                                {% else %}
+                                    <span class="badge text-bg-success">1. Wahl</span>
+                                    <div class="small text-muted mt-1">Alt: {{ t.alt_kurs_name }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="post" action="/administrator/listen/anmeldungen/{{ t.id }}/zuordnung" class="d-inline">
+                                    {{ csrf.field()|raw }}
+                                    <input type="hidden" name="jahrgang" value="{{ jahrgang }}">
+                                    <input type="hidden" name="search" value="{{ search|default('') }}">
+                                    <input type="hidden" name="tab" value="{{ return_tab|default('uebersicht') }}">
+                                    <input type="hidden" name="halbjahr_id" value="{{ block.halbjahr_id }}">
+                                    {% for hid in selected_halbjahre %}
+                                        <input type="hidden" name="hj[]" value="{{ hid }}">
+                                    {% endfor %}
+                                    {% if t.verwendet_alt %}
+                                        <input type="hidden" name="verwendet_alt" value="0">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">1. Wahl nehmen</button>
+                                    {% else %}
+                                        <input type="hidden" name="verwendet_alt" value="1">
+                                        <button type="submit" class="btn btn-sm btn-outline-warning">Alternative nehmen</button>
+                                    {% endif %}
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endfor %}
+{% endif %}

@@ -19,8 +19,8 @@
                     </a>
                     <a class="settings-overview-card" href="/administrator/einstellungen?tab=zeitraum">
                         <i class="bi bi-calendar-range" aria-hidden="true"></i>
-                        <span class="settings-overview-title">Zeitraum</span>
-                        <span class="settings-overview-text">Anmeldezeitraum festlegen</span>
+                        <span class="settings-overview-title">Jahrgänge &amp; Zeitraum</span>
+                        <span class="settings-overview-text">Doppeljahre anlegen und Anmeldezeiten setzen</span>
                     </a>
                     <a class="settings-overview-card" href="/administrator/einstellungen?tab=email">
                         <i class="bi bi-envelope" aria-hidden="true"></i>
@@ -40,7 +40,7 @@
                     <a class="settings-overview-card" href="/administrator/einstellungen?tab=system">
                         <i class="bi bi-hdd-stack" aria-hidden="true"></i>
                         <span class="settings-overview-title">System</span>
-                        <span class="settings-overview-text">Indexierung, Bot-Schutz und Löschen</span>
+                        <span class="settings-overview-text">Indexierung, Bot-Schutz, Update und Löschen</span>
                     </a>
                 </div>
             </div>
@@ -59,6 +59,11 @@
                         <i class="bi bi-shield-lock" aria-hidden="true"></i>
                         <span class="settings-overview-title">Bot-Schutz</span>
                         <span class="settings-overview-text">Google reCAPTCHA oder Cloudflare Turnstile</span>
+                    </a>
+                    <a class="settings-overview-card" href="/administrator/einstellungen?tab=update">
+                        <i class="bi bi-cloud-arrow-down" aria-hidden="true"></i>
+                        <span class="settings-overview-title">Update</span>
+                        <span class="settings-overview-text">Version prüfen und aus GitHub aktualisieren</span>
                     </a>
                     <a class="settings-overview-card settings-overview-card-danger" href="/administrator/einstellungen?tab=daten">
                         <i class="bi bi-trash3" aria-hidden="true"></i>
@@ -420,30 +425,197 @@
                 </form>
             </div>
 
-            {# —— Zeitraum —— #}
+            {# —— Jahrgänge & Zeitraum —— #}
             <div class="settings-panel{% if tab == 'zeitraum' %} is-active{% endif %}" data-panel="zeitraum">
-                <form method="post" action="/administrator/einstellungen" id="settings-zeitraum-form" data-autosave>
-                    {{ csrf.field()|raw }}
-                    <input type="hidden" name="active_tab" value="zeitraum">
-                    <input type="hidden" name="settings_section" value="zeitraum">
+                <h2 class="settings-panel-title">
+                    Jahrgänge &amp; Anmeldezeitraum
+                    {% include 'partials/settings_info.twig' with { text: 'Jeder Jahrgang ist ein Doppeljahr (z. B. 2027/28). Pro Jahrgang können Start und Ende der Anmeldung gesetzt werden. Der aktuelle Jahrgang gilt für neue Anmeldungen.' } %}
+                </h2>
+                <p class="settings-panel-lead mb-3">
+                    Aktuell für neue Anmeldungen:
+                    <strong>{{ aktueller_jahrgang|default('—') }}</strong>
+                </p>
 
-                    <h2 class="settings-panel-title">
-                        Anmeldezeitraum
-                        {% include 'partials/settings_info.twig' with { text: 'Außerhalb dieses Zeitfensters ist die öffentliche Anmeldung geschlossen. Leer lassen = kein Limit.' } %}
-                    </h2>
-
-                    <div class="row g-3 settings-block">
-                        <div class="col-md-6">
-                            <label class="form-label" for="registration_start">Start</label>
-                            <input class="form-control" type="datetime-local" name="registration_start" id="registration_start" value="{{ settings.registration_start|default('')|replace({' ': 'T'})|slice(0, 16) }}">
+                <div class="settings-block mb-4">
+                    <h3 class="h6 mb-3">Neuen Jahrgang anlegen</h3>
+                    <form method="post" action="/administrator/einstellungen/jahrgaenge" class="row g-3 align-items-end">
+                        {{ csrf.field()|raw }}
+                        <div class="col-auto">
+                            <label class="form-label" for="jahrgang_von">Doppeljahr</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <input class="form-control" style="width:6.5rem" type="number" name="jahrgang_von" id="jahrgang_von"
+                                       value="{{ jahrgang_von_default }}" min="2000" max="2100" required>
+                                <span class="fw-semibold">/</span>
+                                <input class="form-control" style="width:6.5rem" type="number" name="jahrgang_bis" id="jahrgang_bis"
+                                       value="{{ jahrgang_bis_default }}" min="2000" max="2100" required>
+                            </div>
+                            <div class="form-text">z. B. 2027 und 2028 → <code>2027/28</code></div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="registration_end">Ende</label>
-                            <input class="form-control" type="datetime-local" name="registration_end" id="registration_end" value="{{ settings.registration_end|default('')|replace({' ': 'T'})|slice(0, 16) }}">
+                        <div class="col-md-3">
+                            <label class="form-label" for="new_registration_start">Anmeldung Start</label>
+                            <input class="form-control" type="datetime-local" name="registration_start" id="new_registration_start">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="new_registration_end">Anmeldung Ende</label>
+                            <input class="form-control" type="datetime-local" name="registration_end" id="new_registration_end">
+                        </div>
+                        <div class="col-auto">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="als_aktuell" value="1" id="new_als_aktuell">
+                                <label class="form-check-label" for="new_als_aktuell">Als aktuellen Jahrgang setzen</label>
+                            </div>
+                            <button type="submit" class="btn btn-outline-primary btn-sm">Jahrgang hinzufügen</button>
+                        </div>
+                    </form>
+                </div>
+
+                {% if jahrgaenge is empty %}
+                    <p class="text-muted">Noch keine Jahrgänge angelegt.</p>
+                {% else %}
+                    {% for jg in jahrgaenge %}
+                        <div class="card app-card mb-3">
+                            <div class="card-body">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                    <h3 class="h5 mb-0">
+                                        Jahrgang <code>{{ jg.name }}</code>
+                                        {% if jg.ist_aktuell %}
+                                            <span class="badge text-bg-success">aktuell</span>
+                                        {% endif %}
+                                    </h3>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% if not jg.ist_aktuell %}
+                                            <form method="post" action="/administrator/einstellungen/jahrgaenge/{{ jg.id }}/aktuell">
+                                                {{ csrf.field()|raw }}
+                                                <button type="submit" class="btn btn-outline-primary btn-sm">Als aktuell setzen</button>
+                                            </form>
+                                        {% endif %}
+                                        <form method="post" action="/administrator/einstellungen/jahrgaenge/{{ jg.id }}/delete"
+                                              onsubmit="return confirm('Jahrgang {{ jg.name }} wirklich löschen?');">
+                                            {{ csrf.field()|raw }}
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">Löschen</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <form method="post" action="/administrator/einstellungen/jahrgaenge/{{ jg.id }}" class="row g-3 align-items-end">
+                                    {{ csrf.field()|raw }}
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="start_{{ jg.id }}">Anmeldung Start</label>
+                                        <input class="form-control" type="datetime-local" name="registration_start" id="start_{{ jg.id }}"
+                                               value="{{ jg.registration_start|default('')|replace({' ': 'T'})|slice(0, 16) }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="end_{{ jg.id }}">Anmeldung Ende</label>
+                                        <input class="form-control" type="datetime-local" name="registration_end" id="end_{{ jg.id }}"
+                                               value="{{ jg.registration_end|default('')|replace({' ': 'T'})|slice(0, 16) }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button type="submit" class="btn btn-outline-primary btn-sm">Zeiten speichern</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            {# —— Update —— #}
+            <div class="settings-panel{% if tab == 'update' %} is-active{% endif %}" data-panel="update">
+                <h2 class="settings-panel-title">
+                    Update
+                    {% include 'partials/settings_info.twig' with { text: 'Quelle einmal eintragen – sie wird dauerhaft gespeichert. Prüfen und Aktualisieren speichern die Quelle mit.' } %}
+                </h2>
+
+                {% set u = update_status|default({
+                    repo_url: settings.update_repo_url|default(''),
+                    ref: settings.update_ref|default('main'),
+                    current: '—',
+                    remote: null,
+                    up_to_date: null,
+                    configured: false,
+                    check_at: ''
+                }) %}
+                {% set update_repo_value = u.repo_url|default(settings.update_repo_url|default(''), true) %}
+                {% if update_repo_value == '' %}
+                    {% set update_repo_value = 'https://github.com/Merian-Schule-Berlin/Wahl-Sportkurse' %}
+                {% endif %}
+
+                <form method="post" action="/administrator/einstellungen/update-quelle" id="update-source-form" data-autosave>
+                    {{ csrf.field()|raw }}
+
+                    <div class="settings-block">
+                        <h3 class="settings-block-title">Update-Quelle</h3>
+                        <div class="mb-3">
+                            <label class="form-label" for="update_repo_url">
+                                GitHub-Repository
+                                {% include 'partials/settings_info.twig' with { text: 'Öffentliches Repo, z. B. https://github.com/Merian-Schule-Berlin/Wahl-Sportkurse' } %}
+                            </label>
+                            <input class="form-control" type="url" name="update_repo_url" id="update_repo_url" required
+                                   placeholder="https://github.com/Merian-Schule-Berlin/Wahl-Sportkurse"
+                                   value="{{ update_repo_value }}">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="update_ref">Branch oder Tag</label>
+                            <input class="form-control" type="text" name="update_ref" id="update_ref" required
+                                   placeholder="main" value="{{ u.ref|default('main') }}" maxlength="100" pattern="[A-Za-z0-9._/\-]+">
+                        </div>
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary">Speichern</button>
                         </div>
                     </div>
-                    <div class="mt-3">
-                        <button type="submit" class="btn btn-primary">Speichern</button>
+
+                    <div class="settings-block">
+                        <h3 class="settings-block-title">Status</h3>
+                        {% if not u.configured %}
+                            <p class="mb-0 text-muted">Noch nicht geprüft – Quelle wird beim ersten Prüfen oder Aktualisieren gespeichert.</p>
+                        {% else %}
+                            <dl class="row mb-0">
+                                <dt class="col-sm-4">Gespeicherte Quelle</dt>
+                                <dd class="col-sm-8"><code>{{ u.repo_url }}</code> @ <code>{{ u.ref }}</code></dd>
+                                <dt class="col-sm-4">Installierte Version</dt>
+                                <dd class="col-sm-8"><code>{{ u.current }}</code></dd>
+                                <dt class="col-sm-4">Remote-Version</dt>
+                                <dd class="col-sm-8">
+                                    {% if u.remote %}
+                                        <code>{{ u.remote }}</code>
+                                        {% if u.up_to_date %}
+                                            <span class="text-success ms-2">aktuell</span>
+                                        {% else %}
+                                            <span class="text-warning ms-2">Update verfügbar</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">noch nicht geprüft</span>
+                                    {% endif %}
+                                </dd>
+                                {% if u.check_at %}
+                                    <dt class="col-sm-4">Letzte Prüfung</dt>
+                                    <dd class="col-sm-8">{{ u.check_at }}</dd>
+                                {% endif %}
+                                {% if settings.update_last_at|default('') %}
+                                    <dt class="col-sm-4">Letztes Update</dt>
+                                    <dd class="col-sm-8">{{ settings.update_last_at }}{% if settings.update_last_version|default('') %} ({{ settings.update_last_version }}){% endif %}</dd>
+                                {% endif %}
+                            </dl>
+                        {% endif %}
+                    </div>
+
+                    <div class="settings-block">
+                        <h3 class="settings-block-title">Aktualisieren</h3>
+                        <p class="text-muted small mb-3">
+                            Speichert die Quelle oben und nutzt sie für Prüfung bzw. Update.
+                            Erhalten bleiben: <code>.env</code>, <code>vendor/</code>, <code>public/uploads/</code> und <code>storage/</code>.
+                        </p>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="submit" class="btn btn-outline-primary"
+                                    formaction="/administrator/einstellungen/update-check">
+                                Jetzt prüfen
+                            </button>
+                            <button type="submit" class="btn btn-primary"
+                                    formaction="/administrator/einstellungen/update"
+                                    formmethod="post"
+                                    onclick="return confirm('System jetzt aus dem GitHub-Repository aktualisieren?');">
+                                Jetzt aktualisieren
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -476,14 +648,14 @@
                         <div class="mb-3">
                             <label class="form-label" for="mail_subject">
                                 Betreff
-                                {% include 'partials/settings_info.twig' with { text: 'Platzhalter möglich, z. B. {name}, {tutorium}.' } %}
+                                {% include 'partials/settings_info.twig' with { text: 'Platzhalter möglich, z. B. {vorname}, {nachname}, {name}, {tutorium}.' } %}
                             </label>
                             <input class="form-control" type="text" name="mail_subject" id="mail_subject" value="{{ settings.mail_subject|default('') }}">
                         </div>
                         <div class="mb-0">
                             <label class="form-label" for="mail_body">
                                 Mail-Text
-                                {% include 'partials/settings_info.twig' with { text: 'Platzhalter: {logo}, {name}, {tutorium}, {email}, {choices}, {cancel_url}, {thanks_url}, {from_name}.' } %}
+                                {% include 'partials/settings_info.twig' with { text: 'Platzhalter: {logo}, {vorname}, {nachname}, {name}, {tutorium}, {email}, {choices}, {cancel_url}, {thanks_url}, {from_name}.' } %}
                             </label>
                             <textarea class="form-control rich-editor" name="mail_body" id="mail_body" rows="14">{{ settings.mail_body|default(mail_body_default, true) }}</textarea>
                         </div>
@@ -494,14 +666,14 @@
                         <div class="mb-3">
                             <label class="form-label" for="mail_cancel_subject">
                                 Betreff
-                                {% include 'partials/settings_info.twig' with { text: 'Platzhalter möglich, z. B. {name}, {tutorium}.' } %}
+                                {% include 'partials/settings_info.twig' with { text: 'Platzhalter möglich, z. B. {vorname}, {nachname}, {name}, {tutorium}.' } %}
                             </label>
                             <input class="form-control" type="text" name="mail_cancel_subject" id="mail_cancel_subject" value="{{ settings.mail_cancel_subject|default('') }}">
                         </div>
                         <div class="mb-0">
                             <label class="form-label" for="mail_cancel_body">
                                 Mail-Text
-                                {% include 'partials/settings_info.twig' with { text: 'Wird nach einer Stornierung gesendet. Platzhalter: {logo}, {name}, {tutorium}, {email}, {choices}, {thanks_url}, {from_name}.' } %}
+                                {% include 'partials/settings_info.twig' with { text: 'Wird nach einer Stornierung gesendet. Platzhalter: {logo}, {vorname}, {nachname}, {name}, {tutorium}, {email}, {choices}, {thanks_url}, {from_name}.' } %}
                             </label>
                             <textarea class="form-control rich-editor" name="mail_cancel_body" id="mail_cancel_body" rows="12">{{ settings.mail_cancel_body|default(mail_cancel_body_default, true) }}</textarea>
                         </div>

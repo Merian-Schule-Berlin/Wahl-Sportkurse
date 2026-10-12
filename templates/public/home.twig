@@ -21,9 +21,18 @@
             </div>
         {% endif %}
         <div class="mb-3 rich-content">{{ welcome_text|rich }}</div>
+        {% if aktueller_jahrgang|default('') %}
+            <p class="text-muted mb-1">Jahrgang <strong>{{ aktueller_jahrgang }}</strong></p>
+        {% endif %}
         {% if registration_start and registration_end %}
             <p class="fw-semibold mb-3">
                 Anmeldung möglich vom {{ registration_start|date('d.m.Y (H:i)') }} bis {{ registration_end|date('d.m.Y (H:i)') }}
+            </p>
+        {% elseif registration_start or registration_end %}
+            <p class="fw-semibold mb-3">
+                {% if registration_start %}Ab {{ registration_start|date('d.m.Y (H:i)') }}{% endif %}
+                {% if registration_start and registration_end %} bis {% endif %}
+                {% if registration_end %}{{ registration_end|date('d.m.Y (H:i)') }}{% endif %}
             </p>
         {% endif %}
         {% if open %}

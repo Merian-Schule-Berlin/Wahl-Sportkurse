@@ -31,6 +31,7 @@ final class PublicController
     public function home(Request $request, Response $response): Response
     {
         $all = $this->settings->all();
+        $window = $this->settings->currentRegistrationWindow();
         $success = $_SESSION['flash_success'] ?? null;
         $successToken = $_SESSION['flash_success_token'] ?? null;
         unset($_SESSION['flash_success'], $_SESSION['flash_success_token']);
@@ -39,8 +40,9 @@ final class PublicController
             'welcome_text' => $all['welcome_text'] ?? '',
             'welcome_image' => $all['welcome_image'] ?? '',
             'open' => $this->settings->isRegistrationOpen(),
-            'registration_start' => $all['registration_start'] ?? '',
-            'registration_end' => $all['registration_end'] ?? '',
+            'registration_start' => $window['start'],
+            'registration_end' => $window['end'],
+            'aktueller_jahrgang' => $window['name'],
             'admin_logged_in' => $this->auth->check(),
             'success' => $success,
             'success_token' => $successToken,
@@ -96,7 +98,8 @@ final class PublicController
             }
 
             $byId = [
-                'name' => (string) ($data['name'] ?? ''),
+                'vorname' => (string) ($data['vorname'] ?? ''),
+                'nachname' => (string) ($data['nachname'] ?? ''),
                 'tutorium' => (string) ($data['tutorium'] ?? ''),
                 'email' => (string) ($data['email'] ?? ''),
             ];

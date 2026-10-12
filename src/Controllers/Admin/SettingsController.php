@@ -8,7 +8,9 @@ use App\Services\AnmeldungService;
 use App\Services\AuthService;
 use App\Services\CsrfService;
 use App\Services\HtmlContentService;
+use App\Services\JahrgangService;
 use App\Services\SettingsService;
+use App\Services\UpdateService;
 use App\Services\UploadService;
 use RuntimeException;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -24,7 +26,9 @@ final class SettingsController
         private readonly CsrfService $csrf,
         private readonly AuthService $auth,
         private readonly AnmeldungService $anmeldungen,
-        private readonly HtmlContentService $html
+        private readonly HtmlContentService $html,
+        private readonly JahrgangService $jahrgaenge,
+        private readonly UpdateService $updater
     ) {
     }
 
@@ -66,12 +70,6 @@ final class SettingsController
                 $part = $this->buildDarstellungUpdates($data, $files, $current);
                 $updates = array_merge($updates, $part['updates']);
                 $reload = $reload || $part['reload'];
-            }
-            if (in_array($section, ['zeitraum', 'all'], true)) {
-                $updates = array_merge($updates, [
-                    'registration_start' => trim((string) ($data['registration_start'] ?? '')),
-                    'registration_end' => trim((string) ($data['registration_end'] ?? '')),
-                ]);
             }
             if (in_array($section, ['email', 'all'], true)) {
                 $updates = array_merge($updates, [
@@ -286,6 +284,185 @@ final class SettingsController
         return $response
             ->withHeader('Location', '/administrator/einstellungen?tab=bot-schutz')
             ->withStatus(302);
+    }
+
+    public function createJahrgang(Request $request, Response $response): Response
+    {
+        $denied = $this->requireFullAdmin($request, $response);
+        if ($denied !== null) {
+            return $denied;
+        }
+        $data = (array) $request->getParsedBody();
+        try {
+            $name = $this->jahrgaenge->create(
+                (int) ($data['jahrgang_von'] ?? 0),
+                (int) ($data['jahrgang_bis'] ?? 0),
+                (string) ($data['registration_start'] ?? ''),
+                (string) ($data['registration_end'] ?? ''),
+                !empty($data['als_aktuell'])
+            );
+            $this->syncJahrgangSettings();
+            $_SESSION['flash'] = 'Jahrgang ' . $name . ' angelegt.';
+        } catch (\Throwable $e) {
+            $_SESSION['flash_error'] = $e->getMessage();
+        }
+        return $response->withHeader('Location', '/administrator/einstellungen?tab=zeitraum')->withStatus(302);
+    }
+
+    public function updateJahrgang(Request $request, Response $response, array $args): Response
+    {
+        $denied = $this->requireFullAdmin($request, $response);
+        if ($denied !== null) {
+            return $denied;
+        }
+        $id = (int) ($args['id'] ?? 0);
+        $data = (array) $request->getParsedBody();
+        try {
+            $this->jahrgaenge->updateTimes(
+                $id,
+                (string) ($data['registration_start'] ?? ''),
+                (string) ($data['registration_end'] ?? '')
+            );
+            if (!empty($data['als_aktuell'])) {
+                $this->jahrgaenge->setAktuell($id);
+            }
+            $this->syncJahrgangSettings();
+            $_SESSION['flash'] = 'Jahrgang gespeichert.';
+        } catch (\Throwable $e) {
+            $_SESSION['flash_error'] = $e->getMessage();
+        }
+        return $response->withHeader('Location', '/administrator/einstellungen?tab=zeitraum')->withStatus(302);
+    }
+
+    public function setAktuellerJahrgang(Request $request, Response $response, array $args): Response
+    {
+        $denied = $this->requireFullAdmin($request, $response);
+        if ($denied !== null) {
+            return $denied;
+        }
+        try {
+            $this->jahrgaenge->setAktuell((int) ($args['id'] ?? 0));
+            $this->syncJahrgangSettings();
+            $_SESSION['flash'] = 'Aktueller Jahrgang: ' . $this->jahrgaenge->resolveName();
+        } catch (\Throwable $e) {
+            $_SESSION['flash_error'] = $e->getMessage();
+        }
+        return $response->withHeader('Location', '/administrator/einstellungen?tab=zeitraum')->withStatus(302);
+    }
+
+    public function deleteJahrgang(Request $request, Response $response, array $args): Response
+    {
+        $denied = $this->requireFullAdmin($request, $response);
+        if ($denied !== null) {
+            return $denied;
+        }
+        try {
+            $this->jahrgaenge->delete((int) ($args['id'] ?? 0));
+            $this->syncJahrgangSettings();
+            $_SESSION['flash'] = 'Jahrgang gelöscht.';
+        } catch (\Throwable $e) {
+            $_SESSION['flash_error'] = $e->getMessage();
+        }
+        return $response->withHeader('Location', '/administrator/einstellungen?tab=zeitraum')->withStatus(302);
+    }
+
+    public function saveUpdateSource(Request $request, Response $response): Response
+    {
+        $denied = $this->requireFullAdmin($request, $response);
+        if ($denied !== null) {
+            return $denied;
+        }
+        $data = (array) $request->getParsedBody();
+        $ajax = $this->isAjax($request);
+        try {
+            $this->persistUpdateSource($data);
+            $message = 'Update-Quelle gespeichert.';
+            if ($ajax) {
+                return $this->json($response, ['ok' => true, 'message' => $message]);
+            }
+            $_SESSION['flash'] = $message;
+        } catch (\Throwable $e) {
+            if ($ajax) {
+                return $this->json($response, ['ok' => false, 'error' => $e->getMessage()], 400);
+            }
+            $_SESSION['flash_error'] = $e->getMessage();
+        }
+        return $response->withHeader('Location', '/administrator/einstellungen?tab=update')->withStatus(302);
+    }
+
+    public function checkUpdate(Request $request, Response $response): Response
+    {
+        $denied = $this->requireFullAdmin($request, $response);
+        if ($denied !== null) {
+            return $denied;
+        }
+        $data = (array) $request->getParsedBody();
+        try {
+            $this->persistUpdateSource($data, true);
+            $result = $this->updater->checkForUpdate(true);
+            if ($result === null) {
+                throw new RuntimeException('Remote-Version konnte nicht gelesen werden. URL und Branch/Tag prüfen.');
+            }
+            if ($result['available']) {
+                $_SESSION['flash'] = 'Update verfügbar: ' . $result['current'] . ' → ' . $result['remote'] . '.';
+            } else {
+                $_SESSION['flash'] = 'Aktuell: Version ' . $result['current']
+                    . ' (Remote: ' . $result['remote'] . ').';
+            }
+        } catch (\Throwable $e) {
+            $_SESSION['flash_error'] = $e->getMessage();
+        }
+        return $response->withHeader('Location', '/administrator/einstellungen?tab=update')->withStatus(302);
+    }
+
+    public function runUpdate(Request $request, Response $response): Response
+    {
+        $denied = $this->requireFullAdmin($request, $response);
+        if ($denied !== null) {
+            return $denied;
+        }
+        $data = (array) $request->getParsedBody();
+        try {
+            $this->persistUpdateSource($data, true);
+            @set_time_limit(300);
+            $result = $this->updater->applyConfigured();
+            $_SESSION['flash'] = $result['message'];
+            unset($_SESSION['update_notice']);
+        } catch (\Throwable $e) {
+            $_SESSION['flash_error'] = $e->getMessage();
+        }
+        return $response->withHeader('Location', '/administrator/einstellungen?tab=update')->withStatus(302);
+    }
+
+    /** @param array<string, mixed> $data */
+    private function persistUpdateSource(array $data, bool $allowSaved = false): void
+    {
+        $repo = trim((string) ($data['update_repo_url'] ?? ''));
+        $ref = trim((string) ($data['update_ref'] ?? ''));
+        if ($repo !== '') {
+            $this->updater->savePreferences(
+                $repo,
+                $ref !== '' ? $ref : UpdateService::DEFAULT_REF
+            );
+            return;
+        }
+        if ($allowSaved && $this->updater->isConfigured()) {
+            return;
+        }
+        throw new RuntimeException('Bitte eine GitHub-Repository-URL als Update-Quelle angeben.');
+    }
+
+    private function syncJahrgangSettings(): void
+    {
+        $jg = $this->jahrgaenge->getAktuell();
+        if ($jg === null) {
+            return;
+        }
+        $this->settings->setMany([
+            'aktueller_jahrgang' => (string) $jg['name'],
+            'registration_start' => (string) ($jg['registration_start'] ?? ''),
+            'registration_end' => (string) ($jg['registration_end'] ?? ''),
+        ]);
     }
 
     private function requireFullAdmin(Request $request, Response $response): ?Response
@@ -539,6 +716,7 @@ final class SettingsController
             'system',
             'indexierung',
             'bot-schutz',
+            'update',
             'daten',
         ];
         $tab = $activeTab ?? 'uebersicht';
@@ -557,6 +735,8 @@ final class SettingsController
             $settings['mail_cancel_body'] = AnmeldungService::defaultCancelMailBody();
         }
 
+        $defaultYears = AnmeldungService::splitSchoolYear(AnmeldungService::defaultSchoolYear());
+
         return $this->view->render($response, 'admin/settings.twig', [
             'settings' => $settings,
             'mail_body_default' => AnmeldungService::defaultMailBody(),
@@ -564,11 +744,15 @@ final class SettingsController
             'users' => $this->auth->listUsers(),
             'fachbereiche' => [],
             'anmeldungen_total' => $this->anmeldungen->countAll(),
+            'jahrgaenge' => $this->jahrgaenge->all(),
+            'aktueller_jahrgang' => $this->jahrgaenge->resolveName(),
+            'jahrgang_von_default' => $defaultYears[0],
+            'jahrgang_bis_default' => $defaultYears[1],
             'flash' => $flash,
             'error' => $error,
             'active_tab' => $tab,
             'current_admin_id' => $this->auth->id(),
-            'update_status' => null,
+            'update_status' => $this->updater->status(false),
         ]);
     }
 }
