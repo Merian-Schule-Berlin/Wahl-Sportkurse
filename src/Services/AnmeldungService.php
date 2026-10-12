@@ -78,19 +78,9 @@ final class AnmeldungService
                 if ($kurs === null || $alt === null) {
                     throw new RuntimeException('Ein gewählter Kurs ist nicht verfügbar.');
                 }
-                if (!(int) $kurs['aktiv'] || !(int) $kurs['halbjahr_aktiv']
-                    || !(int) $alt['aktiv'] || !(int) $alt['halbjahr_aktiv']) {
-                    throw new RuntimeException('Ein gewählter Kurs ist nicht aktiv.');
-                }
-                if ((int) $kurs['halbjahr_id'] !== $i || (int) $alt['halbjahr_id'] !== $i) {
-                    throw new RuntimeException('Kurse müssen zum jeweiligen Halbjahr gehören.');
-                }
-
-                $belegt = $this->countPrimaryLocked((int) $kurs['id']);
-                if ($belegt >= (int) $kurs['kapazitaet']) {
-                    throw new RuntimeException(
-                        'Der Kurs „' . $kurs['name'] . '“ in ' . $kurs['halbjahr_name'] . ' ist ausgebucht.'
-                    );
+                if (!$this->isChoiceAvailable($choices[$i]['kurs'], $i)
+                    || !$this->isChoiceAvailable($choices[$i]['alt'], $i)) {
+                    throw new RuntimeException('Ein gewählter Kurs ist in diesem Halbjahr nicht wählbar.');
                 }
             }
 
@@ -150,11 +140,7 @@ final class AnmeldungService
         }
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $stmt = $this->pdo->prepare(
-            "SELECT k.*, h.name AS halbjahr_name, h.aktiv AS halbjahr_aktiv
-             FROM sportkurse k
-             INNER JOIN halbjahre h ON h.id = k.halbjahr_id
-             WHERE k.id IN ($placeholders)
-             FOR UPDATE"
+            "SELECT k.* FROM sportkurse k WHERE k.id IN ($placeholders) FOR UPDATE"
         );
         $stmt->execute(array_values($ids));
         $out = [];
@@ -164,18 +150,67 @@ final class AnmeldungService
         return $out;
     }
 
-    private function countPrimaryLocked(int $kursId): int
+    private function isChoiceAvailable(int $kursId, int $halbjahrId): bool
     {
         $stmt = $this->pdo->prepare(
-            'SELECT COUNT(*) FROM anmeldungen
-             WHERE status = \'aktiv\'
-               AND (
-                   hj1_kurs_id = :id OR hj2_kurs_id = :id
-                   OR hj3_kurs_id = :id OR hj4_kurs_id = :id
-               )'
+            'SELECT kh.verfuegbar, h.aktiv AS hj_aktiv
+             FROM kurs_halbjahr kh
+             INNER JOIN halbjahre h ON h.id = kh.halbjahr_id
+             WHERE kh.kurs_id = ? AND kh.halbjahr_id = ?
+             FOR UPDATE'
         );
-        $stmt->execute(['id' => $kursId]);
-        return (int) $stmt->fetchColumn();
+        $stmt->execute([$kursId, $halbjahrId]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            return false;
+        }
+        return (int) $row['verfuegbar'] === 1 && (int) $row['hj_aktiv'] === 1;
+    }
+
+    /**
+     * Teilnehmer je Kurs (1. Wahl), gruppiert nach Halbjahr.
+     *
+     * @return list<array{halbjahr_id:int,halbjahr_name:string,kurs_id:int,kurs_name:string,teilnehmer:list<array{name:string,tutorium:string,email:string}>}>
+     */
+    public function teilnehmerNachKurs(): array
+    {
+        $hjNames = [];
+        foreach ($this->pdo->query('SELECT id, name FROM halbjahre ORDER BY id ASC')->fetchAll() as $hj) {
+            $hjNames[(int) $hj['id']] = (string) $hj['name'];
+        }
+
+        $out = [];
+        for ($hj = 1; $hj <= HalbjahrService::SLOT_COUNT; $hj++) {
+            $col = 'hj' . $hj . '_kurs_id';
+            $sql = "SELECT k.id AS kurs_id, k.name AS kurs_name, a.name, a.tutorium, a.email
+                    FROM anmeldungen a
+                    INNER JOIN sportkurse k ON k.id = a.{$col}
+                    WHERE a.status = 'aktiv'
+                    ORDER BY k.sortierung ASC, k.name ASC, a.name ASC";
+            $rows = $this->pdo->query($sql)->fetchAll();
+            $byKurs = [];
+            foreach ($rows as $row) {
+                $kid = (int) $row['kurs_id'];
+                if (!isset($byKurs[$kid])) {
+                    $byKurs[$kid] = [
+                        'halbjahr_id' => $hj,
+                        'halbjahr_name' => $hjNames[$hj] ?? ('Halbjahr ' . $hj),
+                        'kurs_id' => $kid,
+                        'kurs_name' => (string) $row['kurs_name'],
+                        'teilnehmer' => [],
+                    ];
+                }
+                $byKurs[$kid]['teilnehmer'][] = [
+                    'name' => (string) $row['name'],
+                    'tutorium' => (string) $row['tutorium'],
+                    'email' => (string) $row['email'],
+                ];
+            }
+            foreach ($byKurs as $block) {
+                $out[] = $block;
+            }
+        }
+        return $out;
     }
 
     /** @return array<string, mixed>|null */
@@ -196,10 +231,10 @@ final class AnmeldungService
              INNER JOIN sportkurse a3 ON a3.id = a.hj3_alt_id
              INNER JOIN sportkurse k4 ON k4.id = a.hj4_kurs_id
              INNER JOIN sportkurse a4 ON a4.id = a.hj4_alt_id
-             INNER JOIN halbjahre h1 ON h1.id = k1.halbjahr_id
-             INNER JOIN halbjahre h2 ON h2.id = k2.halbjahr_id
-             INNER JOIN halbjahre h3 ON h3.id = k3.halbjahr_id
-             INNER JOIN halbjahre h4 ON h4.id = k4.halbjahr_id
+             INNER JOIN halbjahre h1 ON h1.id = 1
+             INNER JOIN halbjahre h2 ON h2.id = 2
+             INNER JOIN halbjahre h3 ON h3.id = 3
+             INNER JOIN halbjahre h4 ON h4.id = 4
              WHERE a.token = :token'
         );
         $stmt->execute(['token' => $token]);

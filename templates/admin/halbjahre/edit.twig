@@ -33,91 +33,47 @@
     </div>
 </section>
 
-<section class="card app-card mb-4">
-    <div class="card-body">
-        <h2 class="h5 mb-3">Neuen Kurs anlegen</h2>
-        <form method="post" action="/administrator/halbjahre/{{ halbjahr.id }}/kurse" class="row g-3 align-items-end">
-            {{ csrf.field()|raw }}
-            <div class="col-md-6">
-                <label class="form-label" for="kurs_name">Name</label>
-                <input class="form-control" type="text" name="name" id="kurs_name" required>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label" for="kurs_kap">Kapazität</label>
-                <input class="form-control" type="number" name="kapazitaet" id="kurs_kap" min="1" value="20" required>
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-primary w-100">Anlegen</button>
-            </div>
-        </form>
-    </div>
-</section>
-
 <section class="card app-card">
     <div class="card-body">
-        <h2 class="h5 mb-2">Kurse bearbeiten</h2>
+        <h2 class="h5 mb-2">Kurse in diesem Halbjahr</h2>
         <p class="text-muted small mb-3">
-            Mit <strong>Grau</strong> sperren Sie einen Kurs für dieses Halbjahr – er erscheint in der Anmeldung ausgegraut und kann nicht angekreuzt werden.
-            Mit <strong>Wählbar</strong> schalten Sie ihn wieder frei. Name, Kapazität und Sortierung speichern Sie über <strong>Speichern</strong>.
+            Neue Kurse legen Sie unter <a href="/administrator/halbjahre">Halbjahre &amp; Sportkurse</a> an.
+            Hier grauen Sie Kurse nur für <strong>{{ halbjahr.name }}</strong> aus oder schalten sie wieder frei.
         </p>
         {% if kurse is empty %}
-            <p class="text-muted mb-0">Noch keine Kurse in diesem Halbjahr.</p>
+            <p class="text-muted mb-0">Noch keine Kurse vorhanden. Bitte zuerst global anlegen.</p>
         {% else %}
             <div class="table-responsive">
                 <table class="table table-bordered align-middle admin-kurs-table mb-0">
                     <thead>
                         <tr>
                             <th>Kurs</th>
-                            <th style="width:7rem">Kapazität</th>
-                            <th style="width:6rem">Sort.</th>
-                            <th style="width:6rem">Belegt</th>
+                            <th>Bewegungsfeld</th>
+                            <th style="width:7rem">Teilnehmer</th>
                             <th style="width:8rem">Status</th>
-                            <th style="width:14rem">Aktionen</th>
+                            <th style="width:10rem">Aktion</th>
                         </tr>
                     </thead>
                     <tbody>
                     {% for k in kurse %}
-                        <tr class="{% if not k.aktiv %}is-gray{% endif %}">
+                        <tr class="{% if not k.verfuegbar %}is-gray{% endif %}">
+                            <td><span class="fw-medium">{{ k.name }}</span></td>
+                            <td class="text-muted">{{ k.bewegungsfeld|default('—') }}</td>
+                            <td class="text-muted">{{ k.teilnehmer|default(0) }}</td>
                             <td>
-                                <input class="form-control" form="kurs-save-{{ k.id }}" type="text" name="name" value="{{ k.name }}" required>
-                            </td>
-                            <td>
-                                <input class="form-control" form="kurs-save-{{ k.id }}" type="number" name="kapazitaet" min="1" value="{{ k.kapazitaet }}" required>
-                            </td>
-                            <td>
-                                <input class="form-control" form="kurs-save-{{ k.id }}" type="number" name="sortierung" value="{{ k.sortierung }}">
-                            </td>
-                            <td>
-                                <span class="{% if k.belegt >= k.kapazitaet %}text-danger fw-semibold{% else %}text-muted{% endif %}">
-                                    {{ k.belegt }}/{{ k.kapazitaet }}
-                                </span>
-                            </td>
-                            <td>
-                                {% if k.aktiv %}
+                                {% if k.verfuegbar %}
                                     <span class="badge text-bg-success">wählbar</span>
                                 {% else %}
                                     <span class="badge text-bg-secondary">grau</span>
                                 {% endif %}
                             </td>
-                            <td class="text-nowrap">
-                                <form id="kurs-save-{{ k.id }}" method="post" action="/administrator/halbjahre/{{ halbjahr.id }}/kurse/{{ k.id }}" class="d-inline">
+                            <td>
+                                <form method="post" action="/administrator/halbjahre/{{ halbjahr.id }}/kurse/{{ k.id }}/verfuegbar" class="d-inline">
                                     {{ csrf.field()|raw }}
-                                    <input type="hidden" name="aktiv" value="{{ k.aktiv ? '1' : '0' }}">
-                                    <button type="submit" class="btn btn-sm btn-primary">Speichern</button>
-                                </form>
-                                <form method="post" action="/administrator/halbjahre/{{ halbjahr.id }}/kurse/{{ k.id }}" class="d-inline">
-                                    {{ csrf.field()|raw }}
-                                    <input type="hidden" name="name" value="{{ k.name }}">
-                                    <input type="hidden" name="kapazitaet" value="{{ k.kapazitaet }}">
-                                    <input type="hidden" name="sortierung" value="{{ k.sortierung }}">
-                                    <input type="hidden" name="aktiv" value="{{ k.aktiv ? '0' : '1' }}">
+                                    <input type="hidden" name="verfuegbar" value="{{ k.verfuegbar ? '0' : '1' }}">
                                     <button type="submit" class="btn btn-sm btn-outline-secondary">
-                                        {% if k.aktiv %}Grau{% else %}Wählbar{% endif %}
+                                        {% if k.verfuegbar %}Grau{% else %}Wählbar{% endif %}
                                     </button>
-                                </form>
-                                <form method="post" action="/administrator/halbjahre/{{ halbjahr.id }}/kurse/{{ k.id }}/delete" class="d-inline" onsubmit="return confirm('Kurs „{{ k.name }}“ wirklich löschen?');">
-                                    {{ csrf.field()|raw }}
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
                                 </form>
                             </td>
                         </tr>

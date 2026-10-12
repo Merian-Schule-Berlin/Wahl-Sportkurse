@@ -41,12 +41,15 @@ return static function (App $app): void {
             $admin->get('/', [DashboardController::class, 'index']);
 
             $admin->get('/halbjahre', [HalbjahrController::class, 'index']);
+            $admin->post('/halbjahre/kurse', [HalbjahrController::class, 'addKurs']);
+            $admin->post('/halbjahre/kurse/{kursId}', [HalbjahrController::class, 'updateKurs']);
+            $admin->post('/halbjahre/kurse/{kursId}/delete', [HalbjahrController::class, 'deleteKurs']);
+            $admin->post('/halbjahre/kursbeschreibungen', [HalbjahrController::class, 'uploadKursbeschreibungen']);
+            $admin->post('/halbjahre/kursbeschreibungen/delete', [HalbjahrController::class, 'deleteKursbeschreibungen']);
             $admin->get('/halbjahre/{id}', [HalbjahrController::class, 'editForm']);
             $admin->post('/halbjahre/{id}', [HalbjahrController::class, 'update']);
             $admin->post('/halbjahre/{id}/toggle', [HalbjahrController::class, 'toggle']);
-            $admin->post('/halbjahre/{id}/kurse', [HalbjahrController::class, 'addKurs']);
-            $admin->post('/halbjahre/{id}/kurse/{kursId}', [HalbjahrController::class, 'updateKurs']);
-            $admin->post('/halbjahre/{id}/kurse/{kursId}/delete', [HalbjahrController::class, 'deleteKurs']);
+            $admin->post('/halbjahre/{id}/kurse/{kursId}/verfuegbar', [HalbjahrController::class, 'toggleKursVerfuegbar']);
 
             $admin->get('/listen', [ExportController::class, 'index']);
             $admin->get('/listen/anmeldungen.csv', [ExportController::class, 'downloadCsv']);

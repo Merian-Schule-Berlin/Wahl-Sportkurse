@@ -25,13 +25,20 @@ CREATE TABLE IF NOT EXISTS halbjahre (
 
 CREATE TABLE IF NOT EXISTS sportkurse (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    halbjahr_id INT UNSIGNED NOT NULL,
     name VARCHAR(200) NOT NULL,
-    kapazitaet INT UNSIGNED NOT NULL DEFAULT 20,
+    bewegungsfeld VARCHAR(200) NOT NULL DEFAULT '',
+    kapazitaet INT UNSIGNED NOT NULL DEFAULT 0,
     aktiv TINYINT(1) NOT NULL DEFAULT 1,
-    sortierung INT NOT NULL DEFAULT 0,
-    CONSTRAINT fk_sportkurse_halbjahr
-        FOREIGN KEY (halbjahr_id) REFERENCES halbjahre(id) ON DELETE CASCADE
+    sortierung INT NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS kurs_halbjahr (
+    kurs_id INT UNSIGNED NOT NULL,
+    halbjahr_id INT UNSIGNED NOT NULL,
+    verfuegbar TINYINT(1) NOT NULL DEFAULT 1,
+    PRIMARY KEY (kurs_id, halbjahr_id),
+    CONSTRAINT fk_kurs_halbjahr_kurs FOREIGN KEY (kurs_id) REFERENCES sportkurse(id) ON DELETE CASCADE,
+    CONSTRAINT fk_kurs_halbjahr_hj FOREIGN KEY (halbjahr_id) REFERENCES halbjahre(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS anmeldungen (

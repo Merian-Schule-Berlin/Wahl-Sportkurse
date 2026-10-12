@@ -1,13 +1,20 @@
 {% extends 'layouts/base.twig' %}
-{% block title %}Sportkurse wählen · {{ app_name }}{% endblock %}
+{% block title %}Anmeldung Wahl-Sportkurse · {{ app_name }}{% endblock %}
 {% block content %}
-{% set capacity_mode = capacity_display|default('free_numbers') %}
 {% set wahlMap = old.wahl|default({}) %}
 {% set altMap = old.alt|default({}) %}
 <section class="card app-card">
     <div class="card-body p-4">
-        <h1 class="h2 mb-3">Sportkurse wählen</h1>
-        <p class="text-muted mb-3">Bitte kreuzen Sie für jedes Halbjahr eine <strong>1.&nbsp;Wahl</strong> und eine <strong>Alternative</strong> an.</p>
+        <h1 class="h2 mb-3">Anmeldung Wahl-Sportkurse</h1>
+        <p class="text-muted mb-2">Bitte kreuzen Sie für jedes Halbjahr eine <strong>1.&nbsp;Wahl</strong> und eine <strong>Alternative</strong> an.</p>
+        {% if kursbeschreibungen %}
+            <p class="mb-3">
+                Hier findest du eine Übersicht über die
+                <a href="{{ kursbeschreibungen }}" target="_blank" rel="noopener">Kursbeschreibungen</a>.
+            </p>
+        {% else %}
+            <p class="text-muted small mb-3">Kursbeschreibungen werden vom Administrator bereitgestellt, sobald eine Datei hinterlegt ist.</p>
+        {% endif %}
 
         {% if admin_test_mode|default(false) %}
             <div class="alert alert-info">Testmodus: Die öffentliche Anmeldung ist geschlossen. Als Administrator können Sie den Ablauf trotzdem prüfen.</div>
@@ -24,83 +31,71 @@
             <form method="post" action="/anmelden" id="register-form">
                 {{ csrf.field()|raw }}
 
-                {% for hj in halbjahre %}
-                    {% set hjId = hj.id %}
-                    {% set oldWahl = attribute(wahlMap, hjId)|default(attribute(wahlMap, hjId ~ '')|default('')) %}
-                    {% set oldAlt = attribute(altMap, hjId)|default(attribute(altMap, hjId ~ '')|default('')) %}
-                    <div class="mb-4">
-                        <h2 class="h5 mb-2">{{ hj.name }}</h2>
-                        <div class="table-responsive">
-                            <table class="table table-bordered align-middle choice-matrix mb-0">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Kurs</th>
-                                        <th scope="col" class="text-center choice-col">1. Wahl</th>
-                                        <th scope="col" class="text-center choice-col">Alternative</th>
-                                        <th scope="col" class="text-nowrap">Plätze</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                {% for k in hj.kurse %}
-                                    {% set is_gray = not k.aktiv or k.frei <= 0 %}
-                                    {% set is_full = k.frei <= 0 %}
-                                    <tr class="{% if is_gray %}is-gray{% endif %}">
-                                        <td>
-                                            <span class="fw-medium">{{ k.name }}</span>
-                                            {% if not k.aktiv %}
-                                                <span class="badge text-bg-secondary ms-1">gesperrt</span>
-                                            {% elseif is_full %}
-                                                <span class="badge text-bg-warning ms-1">ausgebucht</span>
-                                            {% endif %}
-                                        </td>
-                                        <td class="text-center">
-                                            {% if k.aktiv and not is_full %}
-                                                <input class="form-check-input choice-radio"
-                                                       type="radio"
-                                                       name="wahl[{{ hjId }}]"
-                                                       value="{{ k.id }}"
-                                                       id="wahl-{{ hjId }}-{{ k.id }}"
-                                                       data-hj="{{ hjId }}"
-                                                       data-role="wahl"
-                                                       {% if oldWahl != '' and oldWahl == k.id %}checked{% endif %}
-                                                       required>
-                                            {% else %}
-                                                <span class="choice-blocked" aria-hidden="true">—</span>
-                                            {% endif %}
-                                        </td>
-                                        <td class="text-center">
-                                            {% if k.aktiv %}
-                                                <input class="form-check-input choice-radio"
-                                                       type="radio"
-                                                       name="alt[{{ hjId }}]"
-                                                       value="{{ k.id }}"
-                                                       id="alt-{{ hjId }}-{{ k.id }}"
-                                                       data-hj="{{ hjId }}"
-                                                       data-role="alt"
-                                                       {% if oldAlt != '' and oldAlt == k.id %}checked{% endif %}
-                                                       required>
-                                            {% else %}
-                                                <span class="choice-blocked" aria-hidden="true">—</span>
-                                            {% endif %}
-                                        </td>
-                                        <td class="small text-muted">
-                                            {% if capacity_mode == 'free_numbers' %}
-                                                {{ k.frei }}/{{ k.kapazitaet }}
-                                            {% elseif capacity_mode == 'off' %}
-                                                —
-                                            {% else %}
-                                                {% if is_full %}voll{% else %}frei{% endif %}
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                {% else %}
-                                    <tr><td colspan="4" class="text-muted">Keine Kurse in diesem Halbjahr.</td></tr>
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered align-middle choice-matrix choice-matrix-wide mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col" rowspan="2" class="align-middle">Sportkurs</th>
+                                <th scope="col" rowspan="2" class="align-middle">Bewegungsfeld</th>
+                                {% for hj in halbjahre %}
+                                    <th scope="colgroup" colspan="2" class="text-center">{{ hj.name }}</th>
                                 {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                {% endfor %}
+                            </tr>
+                            <tr>
+                                {% for hj in halbjahre %}
+                                    <th scope="col" class="text-center choice-col">1.&nbsp;Wahl</th>
+                                    <th scope="col" class="text-center choice-col">Alt.</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for k in kurse %}
+                            <tr>
+                                <td><span class="fw-medium">{{ k.name }}</span></td>
+                                <td class="text-muted">{{ k.bewegungsfeld|default('') }}</td>
+                                {% for hj in halbjahre %}
+                                    {% set hjId = hj.id %}
+                                    {% set available = attribute(k.verfuegbar, hjId)|default(attribute(k.verfuegbar, hjId ~ '')|default(false)) %}
+                                    {% set oldWahl = attribute(wahlMap, hjId)|default(attribute(wahlMap, hjId ~ '')|default('')) %}
+                                    {% set oldAlt = attribute(altMap, hjId)|default(attribute(altMap, hjId ~ '')|default('')) %}
+                                    <td class="text-center{% if not available %} is-gray{% endif %}">
+                                        {% if available %}
+                                            <input class="form-check-input choice-radio"
+                                                   type="radio"
+                                                   name="wahl[{{ hjId }}]"
+                                                   value="{{ k.id }}"
+                                                   id="wahl-{{ hjId }}-{{ k.id }}"
+                                                   data-hj="{{ hjId }}"
+                                                   data-role="wahl"
+                                                   {% if oldWahl != '' and oldWahl == k.id %}checked{% endif %}
+                                                   required>
+                                        {% else %}
+                                            <span class="choice-blocked" aria-hidden="true">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center{% if not available %} is-gray{% endif %}">
+                                        {% if available %}
+                                            <input class="form-check-input choice-radio"
+                                                   type="radio"
+                                                   name="alt[{{ hjId }}]"
+                                                   value="{{ k.id }}"
+                                                   id="alt-{{ hjId }}-{{ k.id }}"
+                                                   data-hj="{{ hjId }}"
+                                                   data-role="alt"
+                                                   {% if oldAlt != '' and oldAlt == k.id %}checked{% endif %}
+                                                   required>
+                                        {% else %}
+                                            <span class="choice-blocked" aria-hidden="true">—</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="{{ 2 + (halbjahre|length * 2) }}" class="text-muted">Noch keine Kurse angelegt.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
 
                 <div class="row g-3 mb-3">
                     <div class="col-md-4">

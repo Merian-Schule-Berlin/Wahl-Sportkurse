@@ -2491,7 +2491,17 @@ form.is-autosaving {
 
 /* Wahl-Sportkurse: Ankreuz-Matrix */
 .choice-matrix .choice-col {
-    width: 6.5rem;
+    width: 4.5rem;
+    min-width: 4.25rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+.choice-matrix-wide thead th {
+    vertical-align: middle;
+}
+.choice-matrix-wide thead tr:first-child th[colspan] {
+    text-align: center;
+    background: color-mix(in srgb, var(--brand) 8%, var(--card));
 }
 .choice-matrix .choice-radio {
     width: 1.25rem;
@@ -2500,11 +2510,13 @@ form.is-autosaving {
     cursor: pointer;
 }
 .choice-matrix tr.is-gray,
+.choice-matrix td.is-gray,
 .admin-kurs-table tr.is-gray {
     background: #e9ecef;
     color: #6c757d;
 }
-.choice-matrix tr.is-gray td {
+.choice-matrix tr.is-gray td,
+.choice-matrix td.is-gray {
     background: #e9ecef;
 }
 .choice-blocked {

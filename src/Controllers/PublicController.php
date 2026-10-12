@@ -52,14 +52,15 @@ final class PublicController
         $flash = $_SESSION['flash'] ?? null;
         unset($_SESSION['flash']);
 
-        $halbjahre = $this->halbjahre->activeWithKurse();
+        $matrix = $this->halbjahre->registrationMatrix();
         return $this->view->render($response, 'public/register.twig', [
-            'halbjahre' => $halbjahre,
-            'form_ready' => $this->isFormReady($halbjahre),
+            'halbjahre' => $matrix['halbjahre'],
+            'kurse' => $matrix['kurse'],
+            'form_ready' => $this->isFormReady($matrix['halbjahre'], $matrix['kurse']),
             'error' => $flash,
             'old' => [],
             'admin_test_mode' => !$open && $adminTest,
-            'capacity_display' => $this->settings->capacityDisplay(),
+            'kursbeschreibungen' => $this->kursbeschreibungenUrl(),
             'bot_protection' => $this->botProtection->widgetConfig(),
         ]);
     }
@@ -74,11 +75,13 @@ final class PublicController
         $data = (array) $request->getParsedBody();
         $open = $this->settings->isRegistrationOpen();
         $adminTest = $this->auth->check();
-        $halbjahre = $this->halbjahre->activeWithKurse();
+        $matrix = $this->halbjahre->registrationMatrix();
+        $halbjahre = $matrix['halbjahre'];
+        $kurse = $matrix['kurse'];
 
         try {
             $this->botProtection->assertValid($data, $this->clientIp($request));
-            if (!$this->isFormReady($halbjahre)) {
+            if (!$this->isFormReady($halbjahre, $kurse)) {
                 throw new \RuntimeException(
                     'Die Anmeldung ist noch nicht vollständig eingerichtet (4 Halbjahre mit je mind. 2 Kursen).'
                 );
@@ -89,13 +92,14 @@ final class PublicController
                 'tutorium' => (string) ($data['tutorium'] ?? ''),
                 'email' => (string) ($data['email'] ?? ''),
             ];
-            for ($i = 1; $i <= HalbjahrService::SLOT_COUNT; $i++) {
-                $kursId = (int) ($data['wahl'][$i] ?? $data['wahl'][(string) $i] ?? 0);
-                $altId = (int) ($data['alt'][$i] ?? $data['alt'][(string) $i] ?? 0);
-                $this->assertKursInHalbjahr($kursId, $i);
-                $this->assertKursInHalbjahr($altId, $i);
-                $byId['hj' . $i . '_kurs_id'] = $kursId;
-                $byId['hj' . $i . '_alt_id'] = $altId;
+            foreach ($halbjahre as $hj) {
+                $hjId = (int) $hj['id'];
+                $kursId = (int) ($data['wahl'][$hjId] ?? $data['wahl'][(string) $hjId] ?? 0);
+                $altId = (int) ($data['alt'][$hjId] ?? $data['alt'][(string) $hjId] ?? 0);
+                $this->assertKursInHalbjahr($kursId, $hjId);
+                $this->assertKursInHalbjahr($altId, $hjId);
+                $byId['hj' . $hjId . '_kurs_id'] = $kursId;
+                $byId['hj' . $hjId . '_alt_id'] = $altId;
             }
 
             $anmeldung = $this->anmeldungen->register($byId, !$open && $adminTest);
@@ -105,11 +109,12 @@ final class PublicController
         } catch (\Throwable $e) {
             return $this->view->render($response->withStatus(400), 'public/register.twig', [
                 'halbjahre' => $halbjahre,
-                'form_ready' => $this->isFormReady($halbjahre),
+                'kurse' => $kurse,
+                'form_ready' => $this->isFormReady($halbjahre, $kurse),
                 'error' => $e->getMessage(),
                 'old' => $data,
                 'admin_test_mode' => !$open && $adminTest,
-                'capacity_display' => $this->settings->capacityDisplay(),
+                'kursbeschreibungen' => $this->kursbeschreibungenUrl(),
                 'bot_protection' => $this->botProtection->widgetConfig(),
             ]);
         }
@@ -284,16 +289,18 @@ final class PublicController
 
     /**
      * @param list<array<string, mixed>> $halbjahre
+     * @param list<array<string, mixed>> $kurse
      */
-    private function isFormReady(array $halbjahre): bool
+    private function isFormReady(array $halbjahre, array $kurse): bool
     {
         if (count($halbjahre) !== HalbjahrService::SLOT_COUNT) {
             return false;
         }
         foreach ($halbjahre as $hj) {
+            $hjId = (int) $hj['id'];
             $selectable = 0;
-            foreach ($hj['kurse'] ?? [] as $kurs) {
-                if ((int) ($kurs['aktiv'] ?? 0) === 1) {
+            foreach ($kurse as $kurs) {
+                if (!empty($kurs['verfuegbar'][$hjId])) {
                     $selectable++;
                 }
             }
@@ -304,13 +311,21 @@ final class PublicController
         return true;
     }
 
+    private function kursbeschreibungenUrl(): ?string
+    {
+        $file = trim($this->settings->get('kursbeschreibungen_file'));
+        if ($file === '') {
+            return null;
+        }
+        return '/uploads/' . rawurlencode(basename($file));
+    }
+
     private function assertKursInHalbjahr(int $kursId, int $halbjahrId): void
     {
         if ($kursId < 1) {
             throw new \RuntimeException('Bitte für jedes Halbjahr eine 1. Wahl und eine Alternative wählen.');
         }
-        $kurs = $this->halbjahre->findKurs($kursId);
-        if ($kurs === null || (int) $kurs['halbjahr_id'] !== $halbjahrId || !(int) $kurs['aktiv']) {
+        if (!$this->halbjahre->isKursVerfuegbar($kursId, $halbjahrId)) {
             throw new \RuntimeException('Bitte gültige Kurse für jedes Halbjahr wählen.');
         }
     }

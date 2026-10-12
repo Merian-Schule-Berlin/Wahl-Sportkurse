@@ -8,13 +8,115 @@
 {% if flash %}<div class="alert alert-success">{{ flash }}</div>{% endif %}
 {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
 
+<section class="card app-card mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-2">Kursbeschreibungen</h2>
+        <p class="text-muted small mb-3">
+            Datei mit den Beschreibungen der einzelnen Kurse (PDF, DOC oder DOCX).
+            Auf der Anmeldeseite erscheint dann ein Link darauf.
+        </p>
+        {% if kursbeschreibungen_url %}
+            <p class="mb-3">
+                Aktuell:
+                <a href="{{ kursbeschreibungen_url }}" target="_blank" rel="noopener">
+                    {{ kursbeschreibungen_name|default('Kursbeschreibungen') }}
+                </a>
+            </p>
+            <form method="post" action="/administrator/halbjahre/kursbeschreibungen/delete" class="d-inline" onsubmit="return confirm('Kursbeschreibungen wirklich entfernen?');">
+                {{ csrf.field()|raw }}
+                <button type="submit" class="btn btn-sm btn-outline-danger">Entfernen</button>
+            </form>
+        {% endif %}
+        <form method="post" action="/administrator/halbjahre/kursbeschreibungen" enctype="multipart/form-data" class="row g-3 align-items-end mt-1">
+            {{ csrf.field()|raw }}
+            <div class="col-md-8">
+                <label class="form-label" for="kursbeschreibungen">Datei {% if kursbeschreibungen_url %}ersetzen{% else %}hochladen{% endif %}</label>
+                <input class="form-control" type="file" name="kursbeschreibungen" id="kursbeschreibungen" accept=".pdf,.doc,.docx,application/pdf" required>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100">Hochladen</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<section class="card app-card mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-2">Sportkurse (für alle Halbjahre)</h2>
+        <p class="text-muted small mb-3">
+            Kurse einmal anlegen – sie gelten für alle Halbjahre.
+            Pro Halbjahr können Sie einzelne Kurse unter „Bearbeiten“ ausgrauen.
+        </p>
+
+        <form method="post" action="/administrator/halbjahre/kurse" class="row g-3 align-items-end mb-4">
+            {{ csrf.field()|raw }}
+            <div class="col-md-4">
+                <label class="form-label" for="kurs_name">Neuer Kurs</label>
+                <input class="form-control" type="text" name="name" id="kurs_name" required placeholder="z.&nbsp;B. Basketball">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="kurs_bewegungsfeld">Bewegungsfeld</label>
+                <input class="form-control" type="text" name="bewegungsfeld" id="kurs_bewegungsfeld" placeholder="z.&nbsp;B. Spielen">
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100">Anlegen</button>
+            </div>
+        </form>
+
+        {% if kurse is empty %}
+            <p class="text-muted mb-0">Noch keine Kurse angelegt.</p>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle admin-kurs-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Kurs</th>
+                            <th>Bewegungsfeld</th>
+                            <th style="width:6rem">Sort.</th>
+                            <th style="width:7rem">Anmeldungen</th>
+                            <th style="width:12rem">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for k in kurse %}
+                        <tr>
+                            <td>
+                                <input class="form-control" form="kurs-save-{{ k.id }}" type="text" name="name" value="{{ k.name }}" required>
+                            </td>
+                            <td>
+                                <input class="form-control" form="kurs-save-{{ k.id }}" type="text" name="bewegungsfeld" value="{{ k.bewegungsfeld|default('') }}">
+                            </td>
+                            <td>
+                                <input class="form-control" form="kurs-save-{{ k.id }}" type="number" name="sortierung" value="{{ k.sortierung }}">
+                            </td>
+                            <td class="text-muted">{{ k.teilnehmer|default(0) }}</td>
+                            <td class="text-nowrap">
+                                <form id="kurs-save-{{ k.id }}" method="post" action="/administrator/halbjahre/kurse/{{ k.id }}" class="d-inline">
+                                    {{ csrf.field()|raw }}
+                                    <button type="submit" class="btn btn-sm btn-primary">Speichern</button>
+                                </form>
+                                <form method="post" action="/administrator/halbjahre/kurse/{{ k.id }}/delete" class="d-inline" onsubmit="return confirm('Kurs „{{ k.name }}“ wirklich löschen?');">
+                                    {{ csrf.field()|raw }}
+                                    <input type="hidden" name="redirect" value="/administrator/halbjahre">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+</section>
+
 <div class="table-responsive">
     <table class="table table-hover align-middle">
         <thead>
             <tr>
                 <th>Halbjahr</th>
                 <th>Status</th>
-                <th>Kurse</th>
+                <th>Wählbare Kurse</th>
                 <th></th>
             </tr>
         </thead>
@@ -29,7 +131,7 @@
                         <span class="badge text-bg-secondary">inaktiv</span>
                     {% endif %}
                 </td>
-                <td>{{ hj.kurse|length }}</td>
+                <td>{{ hj.kurse_verfuegbar|default(0) }} / {{ hj.kurse|length }}</td>
                 <td class="text-end">
                     <a class="btn btn-sm btn-outline-primary" href="/administrator/halbjahre/{{ hj.id }}">Bearbeiten</a>
                     <form class="d-inline" method="post" action="/administrator/halbjahre/{{ hj.id }}/toggle">

@@ -51,7 +51,7 @@
                 </a>
                 <a class="dash-quick-action" href="/administrator/listen">
                     <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
-                    <span>Anmeldungen</span>
+                    <span>Kursteilnehmer</span>
                 </a>
                 <a class="dash-quick-action" href="/administrator/einstellungen">
                     <i class="bi bi-gear" aria-hidden="true"></i>
@@ -98,10 +98,8 @@
                                         <ul class="dash-schienen-list">
                                             {% for k in hj.kurse %}
                                                 <li>
-                                                    <span>{{ k.name }}{% if not k.aktiv %} <em>(inaktiv)</em>{% endif %}</span>
-                                                    <span class="dash-capacity{% if k.belegt >= k.kapazitaet %} is-full{% endif %}">
-                                                        {{ k.belegt }}/{{ k.kapazitaet }}
-                                                    </span>
+                                                    <span>{{ k.name }}{% if k.bewegungsfeld %} <small class="text-muted">({{ k.bewegungsfeld }})</small>{% endif %}{% if not k.aktiv %} <em>(grau)</em>{% endif %}</span>
+                                                    <span class="dash-capacity">{{ k.teilnehmer|default(0) }} TN</span>
                                                 </li>
                                             {% endfor %}
                                         </ul>

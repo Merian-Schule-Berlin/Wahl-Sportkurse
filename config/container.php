@@ -223,7 +223,9 @@ return [
         return new HalbjahrController(
             $c->get(Twig::class),
             $c->get(HalbjahrService::class),
-            $c->get(CsrfService::class)
+            $c->get(CsrfService::class),
+            $c->get(SettingsService::class),
+            $c->get(UploadService::class)
         );
     },
     SettingsController::class => static function (ContainerInterface $c) {

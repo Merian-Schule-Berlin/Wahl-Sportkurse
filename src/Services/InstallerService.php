@@ -66,6 +66,8 @@ final class InstallerService
             'welcome_text' => "Willkommen zur Wahl der Sportkurse.\n\nBitte wählen Sie pro Halbjahr eine 1. Wahl und eine Alternative.",
             'welcome_image' => '',
             'site_logo' => '',
+            'kursbeschreibungen_file' => '',
+            'kursbeschreibungen_name' => '',
             'registration_start' => '',
             'registration_end' => '',
             'capacity_display' => SettingsService::CAPACITY_FREE_NUMBERS,

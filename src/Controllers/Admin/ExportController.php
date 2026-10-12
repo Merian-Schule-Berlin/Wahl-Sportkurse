@@ -28,6 +28,7 @@ final class ExportController
 
         return $this->view->render($response, 'admin/listen.twig', [
             'anmeldungen' => $this->anmeldungen->allActive(),
+            'nach_kurs' => $this->anmeldungen->teilnehmerNachKurs(),
             'active_count' => $this->anmeldungen->countActive(),
             'flash' => $flash,
         ]);
